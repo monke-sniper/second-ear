@@ -34,7 +34,6 @@ FIXED_COPY = (
     "This is a real call",
     "Do not read that number out",
     "Hang up, then call back on a number you know.",
-    "{count} digits heard.",
     "Recorded call, replayed through the same pipeline.",
     "Nothing here is live. The mic is off in demo mode.",
 )
@@ -47,6 +46,17 @@ def test_every_fixed_string_is_in_the_dictionary_word_for_word():
 
 def test_the_default_line_to_say_is_the_servers_generic_line():
     assert f'safe_exit_default: "{GENERIC_SAFE_EXIT}"' in APP_JS
+
+
+def test_the_danger_banner_is_its_two_fixed_lines_and_shows_no_count():
+    # danger.digit_count stays on the wire for eval; the screen never shows it.
+    banner = INDEX_HTML.split('id="danger-banner"', 1)[1].split("<main", 1)[0]
+    assert re.findall(r'data-copy="([a-z_]+)"', banner) == ["danger_title", "danger_body"]
+    assert re.findall(r"<p\b", banner) == ["<p", "<p"]
+    for path in sorted(WEB_DIR.glob("*.js")):
+        source = path.read_text(encoding="utf-8")
+        assert "digits heard" not in source, path.name
+        assert "digit_count" not in source, path.name
 
 
 def test_every_copy_key_the_page_asks_for_exists():

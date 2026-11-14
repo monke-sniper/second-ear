@@ -166,15 +166,10 @@ function paintOfficial(info) {
   }
 }
 
-/** The code warning: one banner, a count, never the digits. It stays until reset. */
-export function renderDanger(digitCount) {
-  const banner = el("danger-banner");
-  if (!banner.hidden) {
-    return; // mounted once, never re-announced
-  }
-  const hasCount = Number.isInteger(digitCount) && digitCount > 0;
-  el("danger-count").textContent = hasCount ? t("danger_count", { count: digitCount }) : "";
-  banner.hidden = false;
+/** The code warning: one banner, its two fixed lines, no count and never the digits.
+ *  Shown once and never re-announced; it stays until reset. */
+export function renderDanger() {
+  el("danger-banner").hidden = false;
 }
 
 /** "This is a real call": sheet closed, meter neutral. The banner is not touched. */

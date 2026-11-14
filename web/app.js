@@ -50,7 +50,6 @@ export const COPY = {
     real_call: "This is a real call",
     danger_title: "Do not read that number out",
     danger_body: "Hang up, then call back on a number you know.",
-    danger_count: "{count} digits heard.",
     demo_play: "Play",
     demo_replay: "Replay",
     demo_label_recorded: "Recorded call, replayed through the same pipeline.",
@@ -107,8 +106,8 @@ export function handleServerEvent(event) {
     case "explainer":
       view.renderExplainer(event);
       return;
-    case "danger":
-      view.renderDanger(event.digit_count);
+    case "danger": // the event carries a count for eval; the screen does not show it
+      view.renderDanger();
       return;
     case "error": // the server's own text stays off the screen
       view.setStatus("status_audio_error");

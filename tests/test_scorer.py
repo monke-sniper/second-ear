@@ -6,9 +6,12 @@ wrapper loads, truncates from the left and returns 0..1 — not that the model i
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from server import scorer
+from server.greeting import GREETING_PATTERN, strip_greeting
 from server.scorer import DistilBertRiskScorer, KeywordStandInScorer, RedFlag
 
 GRANDPARENT_CALL = (
@@ -120,3 +123,81 @@ def test_distilbert_keeps_the_end_of_a_long_transcript(tiny_model_dir):
     # Left truncation: both inputs end in the same 254 tokens, so they score the same.
     assert with_tail == pytest.approx(tail_only, abs=1e-6)
     assert model._tokenizer.truncation_side == "left"
+
+
+# ------------------------------------------------- the training greeting rule
+
+
+def test_the_greeting_rule_is_the_one_training_used_character_for_character():
+    # Copied from ml/README.md. If training changes its rule, this must change with it.
+    assert GREETING_PATTERN.pattern == (
+        r"^\s*(?:hello|hi|hey|good\s+(?:morning|afternoon|evening))\b[\s,.!?;:\-\u2013\u2014]*"
+    )
+    assert GREETING_PATTERN.flags & re.IGNORECASE
+
+
+def test_strip_greeting_removes_one_leading_greeting_and_its_punctuation():
+    assert strip_greeting("Hello? This is your pharmacy") == "This is your pharmacy"
+    assert strip_greeting("Good  morning \u2014 it's me") == "it's me"
+    assert strip_greeting("Hello, hello") == "hello"
+    assert strip_greeting("History is long. Hello there") == "History is long. Hello there"
+
+
+def handed_to_tokenizer(model: DistilBertRiskScorer, transcript: str) -> list[str]:
+    """Score `transcript` and return the text the tokenizer was given.
+
+    The tiny model is random, so two different inputs can score within rounding of
+    each other. What the tokenizer was handed is the exact thing to assert on.
+    """
+    model.ensure_loaded()
+    real = model._tokenizer
+    seen: list[str] = []
+
+    def spy(text, **kwargs):
+        seen.append(text)
+        return real(text, **kwargs)
+
+    model._tokenizer = spy
+    try:
+        model.score(transcript)
+    finally:
+        model._tokenizer = real
+    return seen
+
+
+def test_distilbert_scores_a_call_the_same_with_or_without_its_greeting(tiny_model_dir):
+    model = DistilBertRiskScorer(tiny_model_dir)
+    bare = model.score("This is your pharmacy")
+
+    assert model.score("Hello? This is your pharmacy") == pytest.approx(bare, abs=1e-6)
+    assert handed_to_tokenizer(model, "Hello? This is your pharmacy") == ["This is your pharmacy"]
+    # Whitespace is collapsed first, so a greeting behind a line break still goes.
+    assert model.score("  Hello?\n\n This   is your pharmacy ") == pytest.approx(bare, abs=1e-6)
+    # Only the start of the call is touched; a greeting anywhere else stays.
+    later = "This is your pharmacy hello"
+    assert handed_to_tokenizer(model, later) == [later]
+
+
+def test_distilbert_strips_only_the_first_greeting(tiny_model_dir):
+    model = DistilBertRiskScorer(tiny_model_dir)
+
+    twice = model.score("Hello, hello")
+
+    # One "hello" is left and scored. Had both gone, nothing would be left: exactly 0.0.
+    assert twice > 0.0
+    assert twice == pytest.approx(model.score("Hey hello"), abs=1e-6)
+    assert handed_to_tokenizer(model, "Hello, hello") == ["hello"]
+    assert handed_to_tokenizer(model, "Hello, hello hello") == ["hello hello"]
+
+
+def test_distilbert_scores_a_bare_greeting_as_zero_without_loading(tiny_model_dir):
+    model = DistilBertRiskScorer(tiny_model_dir)
+
+    assert model.score("Hello?") == 0.0
+    assert model.is_loaded is False
+
+
+def test_the_stand_in_does_not_strip_the_greeting():
+    stand_in = KeywordStandInScorer((RedFlag(0.4, ("hello",)),))
+
+    assert stand_in.score("Hello? This is your pharmacy") == pytest.approx(0.4)

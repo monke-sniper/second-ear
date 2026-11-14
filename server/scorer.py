@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from server.config import get_settings
+from server.greeting import strip_greeting
 
 # Frozen by docs/SPEC.md §2 and by how the model was trained (ml/README.md).
 MAX_TOKENS = 256
@@ -156,11 +157,13 @@ class DistilBertRiskScorer:
     def score(self, transcript: str) -> float:
         """Risk for the transcript tail.
 
-        Empty or whitespace-only input scores 0.0. The text is truncated from the
-        left to `MAX_TOKENS`, matching how training saw prefixes; no speaker tags,
-        because live transcripts have none.
+        The text is cleaned the way training cleaned it (ml/README.md): whitespace
+        collapsed, then one leading greeting removed from the start of the whole
+        transcript, and only then truncated from the left to `MAX_TOKENS`. No speaker
+        tags, because live transcripts have none. Empty input, or a call that is so
+        far only a greeting, scores 0.0.
         """
-        text = transcript.strip()
+        text = strip_greeting(" ".join(transcript.split()))
         if not text:
             return 0.0
         self.ensure_loaded()

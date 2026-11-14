@@ -345,11 +345,6 @@ blockquote {
   font-weight: var(--weight-bold);
 }
 
-.danger-banner__count {
-  font-weight: var(--weight-label);
-  font-variant-numeric: tabular-nums;
-}
-
 /* ----------------------------------- AlertSheet, SafeExitCard, OfficialNumberCard */
 
 .scrim {

@@ -46,7 +46,7 @@ Dependencies: `uv pip install -r requirements.txt`. Never add a dependency witho
 to `requirements.in` and recompiling `requirements.txt` (`uv pip compile requirements.in
 -o requirements.txt --python-version 3.11`).
 
-State after Phase 5, for orientation: `pytest -q` is 173 passed / 0 xfailed, `/health`
+State after Phase 5, for orientation: `pytest -q` is 181 passed / 0 xfailed, `/health`
 answers, `/ws/audio` acks every frame and streams transcript, risk, alert, danger and
 explainer events, and `/simulate` returns a timeline. The app scores with
 `KeywordStandInScorer` until `models/risk-scorer/` exists, the explainer returns the generic
@@ -64,6 +64,8 @@ laptop (about 0.8 s for a 4 s chunk) because the CUDA libraries are missing — 
 | `server/chunker.py` | 250 ms frames in, 2–6 s pause-cut chunks out; `is_silent` |
 | `server/stt.py` | PCM chunk in, English text out (faster-whisper, CPU fallback) |
 | `server/scorer.py` | Transcript in, risk 0..1 out (DistilBERT; keyword stand-in until trained) |
+| `server/greeting.py` | The training greeting rule, copied verbatim from `ml/README.md`; the DistilBERT scorer applies it |
+| `server/demo.py` | Which recording `/demo/audio` serves to the demo console |
 | `server/alerts.py` | Score history in, alert decision out (pure functions) |
 | `server/danger.py` | Transcript + risk in, digit-warning decision out |
 | `server/numbers.py` | Finds spoken and written numbers in text; counting and redaction both use it |

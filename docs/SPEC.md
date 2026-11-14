@@ -126,7 +126,14 @@ Signatures are listed in the code and are not to be reshaped without updating
   decodes once with the VAD off, so that failure shows at startup and not on the first
   word of a call. Target: ≤ 1 s behind the call on the 4060.
 - **`scorer.RiskScorer.score(transcript) -> float`** — 0..1, monotone-ish, tolerant of empty
-  input (empty → 0.0). `DistilBertRiskScorer` reads the last 256 tokens. `load_app_scorer()`
+  input (empty → 0.0). `DistilBertRiskScorer` cleans the text the way training did
+  (`ml/README.md`), in this order: whitespace collapsed with `" ".join(text.split())`; then
+  `strip_greeting` once, on the start of the whole transcript, which removes one leading
+  `hello`, `hi`, `hey` or `good morning` / `afternoon` / `evening` and the punctuation after
+  it; then the last 256 tokens, left-truncated. A greeting later in the call is never
+  touched, and a call that is so far only a greeting scores 0.0. `GREETING_PATTERN` and
+  `strip_greeting` live in `server/greeting.py`, copied verbatim from training; a test pins
+  the pattern. The keyword stand-in does not strip anything. `load_app_scorer()`
   returns it once `models/risk-scorer/` exists and `KeywordStandInScorer` until then:
   hand-set red-flag phrases over the last 200 words, there so the alerts can be seen
   working, with no accuracy claim. `load_scorer()` still returns `StubScorer` (always 0.0)
@@ -260,8 +267,10 @@ Added in Phase 5:
 - **"This is a real call" is a screen state.** The server is not told. The sheet stays
   closed and the meter stays neutral for the rest of the call; the code warning and the
   pushes are not affected.
-- **The DangerBanner shows a count.** A third line, `{n} digits heard.`, from
-  `danger.digit_count`. Recorded in `docs/design/components/danger-banner.md`.
+- **The DangerBanner shows no count.** It is the two fixed lines in
+  `docs/design/components/danger-banner.md`. A third line, `{n} digits heard.`, was tried
+  on Nov 14 and removed the same day, because the count can be wrong (§10).
+  `danger.digit_count` stays on the wire for eval; the screen never shows it.
 - **Two things in the design are not built.** The `Checked on …` source line of the
   OfficialNumberCard: the wire has no `source_url`, and adding one is a wire-shape change.
   The money-ask marker on the demo timeline: `labels.csv` has no row for either demo file.
@@ -312,16 +321,19 @@ Added in Phase 3:
 - The CUDA runtime libraries Whisper needs (`cublas64_12.dll` was not found on Nov 14).
   Until they are installed Whisper runs on cpu/int8. Installing them is a dependency
   decision, so it is not made in passing.
-- A wrong digit count on one slice, cpu/int8, Nov 14. The chunker cuts `tts_scam.wav` at
-  6 s in the middle of a code being read aloud. With Whisper's default temperature retries
-  that slice took 16.6 s and 14.5 s to transcribe (two runs), against about 0.7 s for the
-  slices around it, and in the demo replay the code warning arrived about 17 s after the
-  chunk closed. With `temperature=0.0` (now in `stt.decode_options`, §4) the slice takes
-  1.9 s, 2.2 s and 1.4 s (three runs) and the warning arrives 1.75 s after the chunk
-  closes. Still open: Whisper repeats itself on that slice and returns 110 digits where a
-  clean decode of the same audio counts 7, and the whole read-out is 12. The warning fires
-  on time; the count on the banner is wrong. `without_timestamps=True` gave 7 digits in
-  0.6 s on that slice. It is a second decode change and has not been made.
+- Known limit: repetition inflates `digit_count`. Measured Nov 14 on cpu/int8. The chunker
+  cuts `tts_scam.wav` at 6 s in the middle of a code being read aloud, and Whisper repeats
+  itself on that slice: it returns 110 digits where a clean decode of the same audio counts
+  7, and the whole read-out is 12. The warning itself is not affected, since it needs only
+  6 and fires on time, but `danger.digit_count` is then not the number of digits spoken.
+  So the banner shows no count (§9), and eval must not read `digit_count` as one.
+  `without_timestamps=True` gave 7 digits on that slice; no further decode change is
+  planned.
+- The timing behind `temperature=0.0` (§4), same slice, same day. With Whisper's default
+  temperature retries it took 16.6 s and 14.5 s to transcribe (two runs), against about
+  0.7 s for the slices around it, and in the demo replay the code warning arrived about
+  17 s after the chunk closed. With `temperature=0.0` it takes 1.9 s, 2.2 s and 1.4 s
+  (three runs) and the warning arrives 1.75 s after the chunk closes.
 - Kaggle API token for the cross-dataset test (Sunday only).
 - A recorded demo call at `eval/calls/demo_scam.wav` and a matching row in `labels.csv`.
 - The design system in `docs/design/` was authored at scaffold time, not sourced from a

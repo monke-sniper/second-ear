@@ -18,21 +18,17 @@ Full-bleed band pinned to the top of the viewport, above the AlertSheet, `z-inde
 │  ■  Do not read that number out      │   title, white on scam.base
 │     Hang up, then call back on a     │   body, white on scam.base
 │     number you know.                 │
-│     12 digits heard.                 │   count, body, 600, tabular figures
 └──────────────────────────────────────┘
 ```
 
 - Background `color.scam.base`, text `color.scam.on`.
 - Title `title` size, body `body` size. No icon button, no close control.
-- Count line: how many digits the server counted (`danger.digit_count`). A count, never the
-  digits. If the event carries no count, the line is left out.
 - It stays until the call is reset. There is no dismiss.
 
 ## Copy (fixed)
 
 - Title: `Do not read that number out`
 - Body: `Hang up, then call back on a number you know.`
-- Count: `{n} digits heard.` (copy key `danger_count`; added Nov 14)
 
 ## Accessibility
 
