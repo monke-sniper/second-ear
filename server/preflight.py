@@ -12,10 +12,10 @@ import argparse
 import sys
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import numpy as np
-
-from server.config import ROOT, Settings, get_settings
+if TYPE_CHECKING:
+    from server.config import Settings
 
 
 def _pass(msg: str) -> None:
@@ -74,7 +74,8 @@ def check_ctranslate2() -> bool:
     return False
 
 
-def check_whisper(settings: Settings) -> bool:
+def check_whisper(settings: "Settings") -> bool:
+    import numpy as np
     from faster_whisper import WhisperModel
 
     def load(device: str, compute_type: str) -> "WhisperModel":
@@ -115,6 +116,23 @@ def check_whisper(settings: Settings) -> bool:
     return True
 
 
+def check_import_isolation() -> bool:
+    """A venv is only as good as what it actually imports.
+
+    A globally exported PYTHONPATH or an activated conda env can put a foreign
+    site-packages on sys.path, and then the lock file describes packages that never
+    load. This caught exactly that in a spawned shell during scaffolding.
+    """
+    sites = [p for p in sys.path if p.replace("\\", "/").endswith(("site-packages", "dist-packages"))]
+    prefix = sys.prefix.replace("\\", "/").lower()
+    foreign = [p for p in sites if not p.replace("\\", "/").lower().startswith(prefix)]
+    if foreign:
+        _warn(f"foreign site-packages on sys.path: {foreign} — unset PYTHONPATH / deactivate conda")
+        return False
+    _pass(f"imports resolve inside {sys.prefix} only")
+    return True
+
+
 def check_model_dir(settings: Settings) -> bool:
     target: Path = settings.risk_model_dir
     if (target / "config.json").is_file():
@@ -140,6 +158,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Second Ear environment preflight")
     parser.add_argument("--skip-whisper", action="store_true", help="skip the model load and transcription")
     args = parser.parse_args(argv)
+
+    # Runs before any third-party import: a foreign site-packages kills the process
+    # at numpy/torch import with a traceback that says nothing about the real cause.
+    if not check_import_isolation():
+        print("\nBLOCKED — fix PYTHONPATH / conda activation, then run this again.")
+        return 1
+
+    from server.config import ROOT, get_settings
 
     settings = get_settings()
     print(f"Second Ear preflight — {ROOT}\n")
