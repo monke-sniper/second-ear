@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = ROOT / "web"
 DATA_DIR = ROOT / "models"
+CALLS_DIR = ROOT / "eval" / "calls"
 
 # The one place the Haiku id is written. Overridable from .env for the weekend.
 DEFAULT_HAIKU_MODEL = "claude-haiku-5-5"

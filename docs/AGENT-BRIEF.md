@@ -13,8 +13,9 @@ one alert to a family member before money moves.
 The server side is built through Phase 4. Audio goes in over `/ws/audio`, is cut into chunks,
 transcribed, scored, and turned into alert, danger and explainer events; `/simulate` replays
 text through the same `CallSession`. Nothing in `server/` raises `NotImplementedError` any
-more and no xfail marker is left. What is not built: the phone UI (`web/` is a shell), the
-trained scorer (a keyword stand-in fills the slot), and `eval/`. Build phase by phase.
+more and no xfail marker is left. The phone UI and the demo console (`/?demo=1`) are built
+too (Phase 5). What is not built: the trained scorer (a keyword stand-in fills the slot)
+and `eval/`. Build phase by phase.
 
 Read `docs/SPEC.md` before changing behaviour. It is the frozen contract: thresholds, windows,
 wire messages, data rules. If the code and SPEC disagree, SPEC wins unless I say otherwise.
@@ -45,7 +46,7 @@ Dependencies: `uv pip install -r requirements.txt`. Never add a dependency witho
 to `requirements.in` and recompiling `requirements.txt` (`uv pip compile requirements.in
 -o requirements.txt --python-version 3.11`).
 
-State after Phase 3, for orientation: `pytest -q` is 159 passed / 0 xfailed, `/health`
+State after Phase 5, for orientation: `pytest -q` is 173 passed / 0 xfailed, `/health`
 answers, `/ws/audio` acks every frame and streams transcript, risk, alert, danger and
 explainer events, and `/simulate` returns a timeline. The app scores with
 `KeywordStandInScorer` until `models/risk-scorer/` exists, the explainer returns the generic

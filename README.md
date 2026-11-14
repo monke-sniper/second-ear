@@ -59,8 +59,11 @@ uvicorn server.app:app --reload --port 8000
 pytest -q
 ```
 
-Open `http://localhost:8000/` for the app shell, `http://localhost:8000/health` for the
-health check. Enable "Demo mode" once Phase 5 lands; it replays `eval/calls/demo_scam.wav`.
+Open `http://localhost:8000/` for the app, `http://localhost:8000/health` for the health
+check. The mic only works on localhost or https. `http://localhost:8000/?demo=1` is the demo
+console: it replays `eval/calls/demo_scam.wav` through the same socket with the mic off, or
+the synthetic-voice `tts_scam.wav` if there is no recording, or a scripted text replay if
+there is neither.
 
 ## Layout
 

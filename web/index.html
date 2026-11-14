@@ -8,93 +8,104 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <!-- Every word comes from the COPY dictionary in app.js, by data-copy key. -->
+
     <!-- DangerBanner — docs/design/components/danger-banner.md. Above everything, never dismissible. -->
     <div class="danger-banner" id="danger-banner" role="alert" aria-live="assertive" hidden>
-      <span class="danger-banner__shape" aria-hidden="true">&#9632;</span>
-      <div>
-        <p class="danger-banner__title">Do not read that number out</p>
-        <p class="danger-banner__body">Hang up, then call back on a number you know.</p>
+      <div class="danger-banner__inner">
+        <span class="danger-banner__shape" aria-hidden="true">&#9632;</span>
+        <div>
+          <p class="danger-banner__title" data-copy="danger_title"></p>
+          <p class="danger-banner__body" data-copy="danger_body"></p>
+          <p class="danger-banner__count" id="danger-count"></p>
+        </div>
       </div>
     </div>
 
-    <main class="app" data-screen="ready">
+    <main class="app" id="app" data-screen="ready">
       <header class="app__bar">
-        <h1 class="app__title">Second Ear</h1>
-        <span class="app__status" id="status">Ready</span>
+        <h1 class="app__title" data-copy="app_title"></h1>
+        <p class="app__status" id="status" role="status"></p>
       </header>
+
+      <!-- Demo console only (screen 6): what is being replayed -->
+      <section class="demo-card" id="demo-card" hidden>
+        <p class="demo-card__file" id="demo-file"></p>
+        <p class="note" id="demo-label"></p>
+        <button class="btn btn--primary" id="demo-play" type="button" data-copy="demo_play" disabled></button>
+      </section>
 
       <!-- RiskMeter — docs/design/components/risk-meter.md -->
       <section
         class="meter"
         id="risk-meter"
         role="meter"
-        aria-label="Scam risk"
+        data-band="calm"
+        data-copy-label="meter_label"
         aria-valuemin="0"
         aria-valuemax="100"
         aria-valuenow="0"
-        aria-valuetext="Calm, 0 out of 100"
       >
         <div class="meter__row">
-          <span class="meter__shape" id="risk-shape" aria-hidden="true">&#9679;</span>
-          <span class="meter__word" id="risk-word">Calm</span>
-          <span class="meter__score" id="risk-score">0</span>
+          <span class="meter__shape" id="risk-shape" aria-hidden="true"></span>
+          <span class="meter__word" id="risk-word"></span>
+          <span class="meter__score" id="risk-score"></span>
         </div>
         <div class="meter__track" aria-hidden="true"><div class="meter__fill" id="risk-fill"></div></div>
       </section>
+      <p class="note" id="real-call-note" data-copy="real_call_note" hidden></p>
 
-      <p class="hint" id="ready-hint">Put the call on speaker next to this phone.</p>
-
-      <section class="transcript" aria-label="Live transcript">
-        <p class="transcript__text" id="transcript">The call will appear here.</p>
-      </section>
-
-      <!-- AlertSheet — docs/design/components/alert-sheet.md -->
-      <div class="scrim" id="alert-scrim" hidden>
-        <section
-          class="sheet"
-          id="alert-sheet"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="alert-title"
-          hidden
-        >
-          <header class="sheet__header" id="alert-header" data-level="caution">
-            <span class="sheet__shape" id="alert-shape" aria-hidden="true">&#9650;</span>
-            <h2 class="sheet__title" id="alert-title" tabindex="-1">Be careful</h2>
-          </header>
-
-          <div class="sheet__body">
-            <!-- SafeExitCard — docs/design/components/safe-exit-card.md -->
-            <section class="card safe-exit" aria-labelledby="say-this">
-              <p class="card__label" id="say-this">SAY THIS</p>
-              <blockquote class="safe-exit__line" id="safe-exit-line">
-                I'll call you back at the number on my card.
-              </blockquote>
-            </section>
-
-            <!-- OfficialNumberCard — docs/design/components/official-number-card.md -->
-            <section class="card official" aria-labelledby="call-back">
-              <p class="card__label" id="call-back">CALL BACK</p>
-              <p class="official__org" id="official-org" hidden></p>
-              <a class="official__number" id="official-number" hidden href="#"></a>
-              <p class="official__fallback" id="official-fallback">
-                Use the number on your card or your last statement.
-              </p>
-            </section>
-          </div>
-
-          <footer class="sheet__footer">
-            <button class="btn btn--neutral" id="real-call" type="button">This is a real call</button>
-          </footer>
-        </section>
+      <div class="timeline" id="timeline" aria-hidden="true" hidden>
+        <div class="timeline__fill" id="timeline-fill"></div>
+        <span class="timeline__mark" id="timeline-mark" hidden></span>
       </div>
+      <p class="note" id="timeline-note" hidden></p>
+
+      <section class="transcript" id="transcript" data-copy-label="transcript_label"></section>
 
       <div class="controls">
-        <button class="btn btn--primary" id="start" type="button">Start listening</button>
-        <button class="btn btn--outline" id="stop" type="button" hidden>Stop</button>
+        <button class="btn btn--primary" id="start" type="button" data-copy="start"></button>
+        <button class="btn btn--outline" id="stop" type="button" data-copy="stop" hidden></button>
+        <button class="link" id="demo" type="button" data-copy="demo_mode"></button>
       </div>
-      <button class="link" id="demo" type="button">Demo mode</button>
+      <p class="note" id="mic-note" data-copy="mic_note" hidden></p>
+      <p class="note" id="demo-foot" data-copy="demo_footer" hidden></p>
     </main>
+
+    <!-- AlertSheet — docs/design/components/alert-sheet.md. Outside <main>, which goes inert behind it. -->
+    <div class="scrim" id="alert-scrim" hidden>
+      <section
+        class="sheet"
+        id="alert-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="alert-title"
+        data-level="caution"
+      >
+        <header class="sheet__header">
+          <span class="sheet__shape" id="alert-shape" aria-hidden="true"></span>
+          <h2 class="sheet__title" id="alert-title" tabindex="-1"></h2>
+        </header>
+
+        <!-- SafeExitCard — docs/design/components/safe-exit-card.md -->
+        <section class="card" aria-labelledby="say-this">
+          <p class="card__label" id="say-this" data-copy="say_this"></p>
+          <blockquote class="safe-exit__line" id="safe-exit-line"></blockquote>
+        </section>
+
+        <!-- OfficialNumberCard — docs/design/components/official-number-card.md -->
+        <section class="card" aria-labelledby="call-back">
+          <p class="card__label" id="call-back" data-copy="call_back"></p>
+          <p class="official__org" id="official-org" hidden></p>
+          <a class="official__number" id="official-number" hidden></a>
+          <p class="official__fallback" id="official-fallback" data-copy="call_back_fallback"></p>
+        </section>
+
+        <footer class="sheet__footer">
+          <button class="btn btn--neutral" id="real-call" type="button" data-copy="real_call"></button>
+        </footer>
+      </section>
+    </div>
 
     <script type="module" src="app.js"></script>
   </body>

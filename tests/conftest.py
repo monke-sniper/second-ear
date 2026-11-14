@@ -8,6 +8,7 @@ no test can load a model, spend a token or reach a real phone.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Iterator, Sequence
 
 import pytest
@@ -28,6 +29,7 @@ class Harness:
     scorer: object = field(default_factory=StubScorer)
     anthropic: FakeAnthropic = field(default_factory=FakeAnthropic)
     http: FakeHttp = field(default_factory=FakeHttp)
+    calls_dir: Path | None = None  # where /demo/audio looks; None is the real folder
 
     def notifier(self) -> NtfyNotifier:
         return NtfyNotifier(topic="test-topic", base_url="https://ntfy.test", client=self.http)
@@ -39,6 +41,7 @@ class Harness:
                 scorer=self.scorer,
                 explainer=Explainer(client=self.anthropic, orgs=FAKE_ORGS),
                 notifier_factory=self.notifier,
+                calls_dir=self.calls_dir,
             )
         )
 

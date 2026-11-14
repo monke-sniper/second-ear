@@ -99,6 +99,9 @@ HTTP:
   `{"timeline": [{"t_s", "score", "level"}], "alerts": [...], "explainers": [...], "danger": [...]}`
   out. Runs the same session and rules as the socket, with the explainer once per alert.
   It never sends a push. An empty chunk adds no timeline point.
+- `GET /demo/audio` → the recording demo mode replays: `eval/calls/demo_scam.wav`, or
+  `eval/calls/tts_scam.wav` if that is missing, as `audio/wav` with the file name in
+  `Content-Disposition`. `404` when neither exists. No other file in that folder is served.
 - `GET /` → `web/index.html`; the rest of `web/` is served statically.
 
 ## 4. Module contracts
@@ -237,6 +240,34 @@ Don't re-litigate these mid-build; raise them instead.
 - **No CI.** A private 48-hour repo whose test job would download torch is slower than the
   bugs it catches. `pytest -q` before every commit instead.
 
+Added in Phase 5:
+
+- **The client is five small modules, no build step.** `app.js` holds the one copy
+  dictionary, routes server events and binds the buttons; `view.js` draws the components;
+  `call.js` owns the audio graph and the socket; `demo.js` is the demo console;
+  `audio-worklet.js` resamples to 16 kHz s16le and transfers 8 000-byte frames.
+- **Demo mode is the live path with a different source.** The recording is decoded in the
+  browser, played out loud, and fed to the same worklet and the same socket. The mic is
+  never asked for. Because it is the live path, a replay sends the same pushes a live call
+  would. When the recording ends the console sends 6.5 s of silence, then keeps the socket
+  open until the server has acked all of it (60 s at most) and the explainer has had its
+  4 s, so a slow Whisper cannot cut off the last alert.
+- **Text replay.** With no recording on disk, the console posts a scripted grandparent call
+  to `/simulate` and replays the answer through the same event handler at twice the call's
+  pace, labelled `Text replay, no audio`. The code read-out is shown as `[number]`.
+- **"This is a real call" is a screen state.** The server is not told. The sheet stays
+  closed and the meter stays neutral for the rest of the call; the code warning and the
+  pushes are not affected.
+- **The DangerBanner shows a count.** A third line, `{n} digits heard.`, from
+  `danger.digit_count`. Recorded in `docs/design/components/danger-banner.md`.
+- **Two things in the design are not built.** The `Checked on …` source line of the
+  OfficialNumberCard: the wire has no `source_url`, and adding one is a wire-shape change.
+  The money-ask marker on the demo timeline: `labels.csv` has no row for either demo file.
+- **New copy.** The design asks for these lines without wording them, so they were written
+  here: the mic permission line, the mic-blocked, no-mic, insecure-origin and dropped
+  connection status lines, the demo status lines, `Synthetic voice, replayed through the
+  same pipeline.`, `Text replay, no audio`, and `First alert at {n} seconds.`
+
 Added in Phase 4:
 
 - **Explainer request.** Thinking disabled, effort `low`, 256 output tokens, no retries, no
@@ -279,6 +310,12 @@ Added in Phase 3:
 - The CUDA runtime libraries Whisper needs (`cublas64_12.dll` was not found on Nov 14).
   Until they are installed Whisper runs on cpu/int8. Installing them is a dependency
   decision, so it is not made in passing.
+- One slow decode on cpu/int8, measured Nov 14. A 6 s slice of `tts_scam.wav` in which a
+  code is read aloud took 16.6 s and 14.5 s to transcribe (two runs), against about 0.7 s
+  for the slices around it. In the demo replay the code warning for it came about 16 s
+  late and counted 110 digits, where the same audio decoded cleanly counts 12. The same
+  slice took 1.5 s with `temperature=0.0` and 0.7 s with `without_timestamps=True`.
+  Changing Whisper's decode options is a §4 decision, so it is not made in passing.
 - Kaggle API token for the cross-dataset test (Sunday only).
 - A recorded demo call at `eval/calls/demo_scam.wav` and a matching row in `labels.csv`.
 - The design system in `docs/design/` was authored at scaffold time, not sourced from a

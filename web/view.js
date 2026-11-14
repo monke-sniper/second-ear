@@ -1,0 +1,196 @@
+/*
+ * Second Ear — the screen. Draws the five components in docs/design/components/:
+ * RiskMeter, the transcript lines, AlertSheet, SafeExitCard, OfficialNumberCard,
+ * DangerBanner. In: plain values from server events. Out: DOM state.
+ * It opens no socket, touches no audio, and holds no copy: text comes from `t`.
+ */
+
+const el = (id) => document.getElementById(id);
+
+const CIRCLE = "●";
+const TRIANGLE = "▲";
+const SQUARE = "■";
+// Display-only bands (risk-meter.md). The alert rules live on the server.
+const BANDS = [
+  { name: "scam", from: 85, shape: SQUARE, word: "meter_scam" },
+  { name: "watch", from: 50, shape: TRIANGLE, word: "meter_watch" },
+  { name: "calm", from: 0, shape: CIRCLE, word: "meter_calm" },
+];
+const NEUTRAL = { name: "neutral", shape: CIRCLE, word: "meter_real_call" };
+const TRANSCRIPT_LINES = 2;
+const SAFE_EXIT_MAX_LINES = 3;
+const SMALL_LINE = "safe-exit__line--small";
+
+const START = { score: 0, lines: [], sheet: null, explainer: null, realCall: false };
+let state = START;
+let t = (key) => key;
+
+/** Fill every `data-copy` element from the dictionary and draw the empty state. */
+export function initView(translate) {
+  t = translate;
+  document.querySelectorAll("[data-copy]").forEach((node) => {
+    node.textContent = t(node.dataset.copy);
+  });
+  document.querySelectorAll("[data-copy-label]").forEach((node) => {
+    node.setAttribute("aria-label", t(node.dataset.copyLabel));
+  });
+  // The sheet starts below the banner, however tall the banner's text runs.
+  new ResizeObserver(() => {
+    const height = el("danger-banner").offsetHeight;
+    document.documentElement.style.setProperty("--banner-height", `${height}px`);
+  }).observe(el("danger-banner"));
+  resetView();
+}
+
+/** A new call: nothing heard, no alert, no banner, the meter at calm zero. */
+export function resetView() {
+  state = START;
+  closeSheet();
+  el("danger-banner").hidden = true;
+  el("real-call-note").hidden = true;
+  paintMeter();
+  paintTranscript();
+}
+
+export function setStatus(key) {
+  el("status").textContent = t(key);
+}
+
+/** RiskMeter: an integer 0–100, its band, word and shape. No decimals, no animation. */
+export function renderRisk(score) {
+  if (!Number.isFinite(score)) {
+    return;
+  }
+  state = { ...state, score: Math.max(0, Math.min(100, Math.round(score * 100))) };
+  paintMeter();
+}
+
+function paintMeter() {
+  const band = state.realCall ? NEUTRAL : BANDS.find((entry) => state.score >= entry.from);
+  const word = t(band.word);
+  const meter = el("risk-meter");
+  meter.dataset.band = band.name;
+  meter.setAttribute("aria-valuenow", String(state.score));
+  meter.setAttribute("aria-valuetext", t("meter_value_text", { word, score: state.score }));
+  el("risk-shape").textContent = band.shape;
+  el("risk-word").textContent = word;
+  el("risk-score").textContent = String(state.score);
+  el("risk-fill").style.width = `${state.score}%`;
+}
+
+/** Keep the last two chunks. The server has already replaced every number. */
+export function renderTranscript(text) {
+  if (typeof text !== "string" || text.trim() === "") {
+    return;
+  }
+  state = { ...state, lines: [...state.lines, text].slice(-TRANSCRIPT_LINES) };
+  paintTranscript();
+}
+
+function paintTranscript() {
+  const lines = state.lines.length > 0 ? state.lines : [t("transcript_empty")];
+  const nodes = lines.map((line) => {
+    const node = document.createElement("p");
+    node.className = "transcript__line";
+    node.textContent = line;
+    return node;
+  });
+  el("transcript").replaceChildren(...nodes);
+}
+
+/** Open the AlertSheet, or rewrite it in place when caution becomes scam. */
+export function renderAlert(level) {
+  const isKnown = level === "caution" || level === "scam";
+  if (!isKnown || state.realCall || state.sheet === "scam") {
+    return; // marked as a real call, or already at the top level
+  }
+  const wasOpen = state.sheet !== null;
+  state = { ...state, sheet: level };
+  const isScam = level === "scam";
+  el("alert-sheet").dataset.level = level;
+  el("alert-shape").textContent = isScam ? SQUARE : TRIANGLE;
+  el("alert-title").textContent = t(isScam ? "alert_scam_title" : "alert_caution_title");
+  if (!wasOpen) {
+    el("alert-scrim").hidden = false;
+    el("app").inert = true;
+    document.body.classList.add("is-locked");
+  }
+  paintCards();
+  if (!wasOpen) {
+    el("alert-title").focus();
+  }
+}
+
+/** Late enrichment. A degraded answer changes nothing: what is on screen stays. */
+export function renderExplainer(event) {
+  if (!event || event.degraded === true || typeof event.safe_exit_line !== "string") {
+    return;
+  }
+  state = { ...state, explainer: event };
+  if (state.sheet !== null) {
+    paintCards();
+  }
+}
+
+function paintCards() {
+  const info = state.explainer;
+  const line = el("safe-exit-line");
+  line.textContent = info !== null && info.safe_exit_line.trim() !== ""
+    ? info.safe_exit_line
+    : t("safe_exit_default");
+  // Never truncated: a line that runs past three lines steps down once, to 28 px.
+  line.classList.remove(SMALL_LINE);
+  const lineHeight = parseFloat(getComputedStyle(line).lineHeight);
+  if (line.clientHeight > lineHeight * SAFE_EXIT_MAX_LINES + 1) {
+    line.classList.add(SMALL_LINE);
+  }
+  paintOfficial(info);
+}
+
+/** A number is shown only if the server sent one; nothing is ever guessed here. */
+function paintOfficial(info) {
+  const org = info !== null && typeof info.org_name === "string" ? info.org_name : "";
+  const sent = info !== null && typeof info.official_number === "string" ? info.official_number : "";
+  const number = org !== "" ? sent : "";
+  const link = el("official-number");
+  el("official-org").textContent = org;
+  el("official-org").hidden = org === "";
+  el("official-fallback").hidden = number !== "";
+  link.textContent = number;
+  link.hidden = number === "";
+  link.removeAttribute("href");
+  link.removeAttribute("aria-label");
+  if (number !== "" && window.matchMedia("(pointer: coarse)").matches) {
+    link.setAttribute("href", `tel:${number.replace(/[^\d+]/g, "")}`);
+    link.setAttribute("aria-label", t("call_number_label", { org, number }));
+  }
+}
+
+/** The code warning: one banner, a count, never the digits. It stays until reset. */
+export function renderDanger(digitCount) {
+  const banner = el("danger-banner");
+  if (!banner.hidden) {
+    return; // mounted once, never re-announced
+  }
+  const hasCount = Number.isInteger(digitCount) && digitCount > 0;
+  el("danger-count").textContent = hasCount ? t("danger_count", { count: digitCount }) : "";
+  banner.hidden = false;
+}
+
+/** "This is a real call": sheet closed, meter neutral. The banner is not touched. */
+export function markRealCall() {
+  state = { ...state, sheet: null, realCall: true };
+  closeSheet();
+  el("real-call-note").hidden = false;
+  paintMeter();
+  const next = ["stop", "demo-play", "start"].map(el).find((node) => !node.hidden);
+  if (next) {
+    next.focus();
+  }
+}
+
+function closeSheet() {
+  el("alert-scrim").hidden = true;
+  el("app").inert = false;
+  document.body.classList.remove("is-locked");
+}

@@ -17,5 +17,5 @@ def test_index_serves_the_app_shell(client):
 
 
 def test_static_assets_are_served(client):
-    for path in ("/app.js", "/styles.css", "/audio-worklet.js"):
+    for path in ("/app.js", "/call.js", "/view.js", "/demo.js", "/styles.css", "/audio-worklet.js"):
         assert client.get(path).status_code == 200, path

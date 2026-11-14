@@ -1,9 +1,9 @@
 /*
- * Second Ear — design tokens, then a reset. Component styles are Phase 5 work and
- * must be written from docs/design/, not invented here.
+ * Second Ear — design tokens, a reset, then the components in docs/design/.
  *
  * tokens.json is canonical. If a value changes, change it there, then here, then
- * the component spec that cites it.
+ * the component spec that cites it. Component rules below use tokens only; the few
+ * sizes a component spec fixes itself are derived from tokens and say where from.
  */
 
 :root {
@@ -11,15 +11,19 @@
   --color-calm-base: #0f766e;
   --color-calm-soft: #ccfbf1;
   --color-calm-ink: #134e4a;
+  --color-calm-on: #ffffff;
   --color-watch-base: #b45309;
   --color-watch-soft: #fef3c7;
   --color-watch-ink: #78350f;
+  --color-watch-on: #ffffff;
   --color-scam-base: #b91c1c;
   --color-scam-soft: #fee2e2;
   --color-scam-ink: #7f1d1d;
+  --color-scam-on: #ffffff;
   --color-neutral-base: #475569;
   --color-neutral-soft: #f1f5f9;
   --color-neutral-ink: #0f172a;
+  --color-neutral-on: #ffffff;
   --color-ink: #0f172a;
   --color-muted: #475569;
   --color-surface: #f8fafc;
@@ -27,6 +31,7 @@
   --color-border: #cbd5e1;
   --color-control: #64748b; /* 4.76:1 on white — any boundary that carries meaning */
   --color-focus: #1d4ed8;
+  --color-scrim: rgba(15, 23, 42, 0.6); /* alert-sheet.md: ink at 60 % */
 
   /* type */
   --font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
@@ -38,24 +43,43 @@
   --leading-display: 48px;
   --leading-title: 38px;
   --leading-body: 28px;
+  --leading-label: 24px;
+  --leading-caption: 20px;
+  --weight-bold: 700;
+  --weight-label: 600;
+  --weight-body: 400;
+  --tracking-display: -0.5px;
 
-  /* space, radius, layout, motion */
+  /* space, radius, layout, motion, elevation */
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 12px;
   --space-lg: 16px;
   --space-xl: 24px;
   --space-xxl: 32px;
+  --space-xxxl: 48px;
   --radius-sm: 8px;
   --radius-md: 16px;
   --radius-lg: 24px;
   --radius-pill: 999px;
   --phone-width: 360px;
+  --phone-height: 640px;
   --page-gutter: 16px;
+  --alert-gutter: 24px;
   --touch-min: 48px;
   --motion-fast: 120ms;
   --motion-base: 180ms;
   --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --elevation-card: 0 1px 2px rgba(15, 23, 42, 0.08);
+  --elevation-sheet: 0 8px 32px rgba(15, 23, 42, 0.24);
+
+  /* fixed by a component spec, built from tokens */
+  --button-height: calc(var(--touch-min) + var(--space-sm)); /* 56 px — screens.md */
+  --meter-height: calc(var(--touch-min) + var(--space-xl)); /* 72 px — risk-meter.md */
+  --bar-height: var(--space-sm); /* 8 px — risk-meter.md */
+  --text-line-small: calc(var(--text-body) + var(--space-sm)); /* 28 px — safe-exit-card.md */
+  --leading-line-small: calc(var(--leading-body) + var(--space-sm));
+  --banner-height: 0px; /* set by view.js while the DangerBanner is up */
 }
 
 *,
@@ -76,16 +100,428 @@ body {
   font-family: var(--font-family);
   font-size: var(--text-body);
   line-height: var(--leading-body);
+  font-weight: var(--weight-body);
   -webkit-font-smoothing: antialiased;
+  padding-top: var(--banner-height); /* the banner covers nothing */
+}
+
+body.is-locked {
+  overflow: hidden; /* the sheet is the only scrollable region */
 }
 
 [hidden] {
   display: none !important;
 }
 
-/* Page frame only: the content column is phone-width, centred on a laptop. */
+p,
+h1,
+h2,
+blockquote {
+  margin: 0;
+}
+
+:focus-visible {
+  outline: var(--space-xs) solid var(--color-focus);
+  outline-offset: calc(var(--space-xs) / 2);
+}
+
+/* Page frame: one phone-width column, centred on a laptop. Nothing reflows wider. */
 .app {
   max-width: var(--phone-width);
   margin: 0 auto;
   padding: var(--page-gutter);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.app__title {
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-bold);
+}
+
+/* Two lines are always reserved, so "Listening." does not pull the page up. */
+.app__status {
+  min-height: calc(2 * var(--leading-body));
+  color: var(--color-muted);
+}
+
+.app[data-screen="demo"] .app__status {
+  min-height: var(--leading-body);
+}
+
+.note {
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  color: var(--color-muted);
+}
+
+/* ------------------------------------------------------------------ RiskMeter */
+
+.meter {
+  --band-base: var(--color-calm-base);
+  --band-soft: var(--color-calm-soft);
+  --band-ink: var(--color-calm-ink);
+  min-height: var(--meter-height);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-md);
+  background: var(--band-soft);
+  color: var(--band-ink);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-sm);
+}
+
+.meter[data-band="watch"] {
+  --band-base: var(--color-watch-base);
+  --band-soft: var(--color-watch-soft);
+  --band-ink: var(--color-watch-ink);
+}
+
+.meter[data-band="scam"] {
+  --band-base: var(--color-scam-base);
+  --band-soft: var(--color-scam-soft);
+  --band-ink: var(--color-scam-ink);
+}
+
+.meter[data-band="neutral"] {
+  --band-base: var(--color-neutral-base);
+  --band-soft: var(--color-neutral-soft);
+  --band-ink: var(--color-neutral-ink);
+}
+
+.meter__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.meter__shape {
+  width: var(--space-lg);
+  font-size: var(--space-lg);
+  line-height: var(--leading-label);
+  text-align: center;
+}
+
+.meter__word {
+  flex: 1;
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  font-weight: var(--weight-label);
+}
+
+/* Tabular figures in a slot wide enough for "100": a rising score moves nothing. */
+.meter__score {
+  min-width: 3ch;
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.meter__track,
+.timeline {
+  height: var(--bar-height);
+  border-radius: var(--radius-pill);
+  background: var(--color-neutral-soft);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.meter__track {
+  overflow: hidden;
+}
+
+.meter__fill {
+  width: 0;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--band-base);
+  transition: width var(--motion-fast) var(--motion-ease);
+}
+
+/* ----------------------------------------------------------------- Transcript */
+
+/* A fixed block: two chunks of two lines each, whatever arrives. */
+.transcript {
+  height: calc(4 * var(--leading-body) + var(--space-sm));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  color: var(--color-muted);
+  overflow: hidden;
+}
+
+.transcript__line {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+/* -------------------------------------------------------------------- Buttons */
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.btn {
+  display: block;
+  width: 100%;
+  min-height: var(--button-height);
+  padding: var(--space-sm) var(--space-lg);
+  border: calc(var(--space-xs) / 2) solid transparent;
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: var(--weight-label);
+  cursor: pointer;
+}
+
+.btn--primary {
+  background: var(--color-calm-base);
+  color: var(--color-calm-on);
+}
+
+.btn--outline {
+  background: var(--color-card);
+  border-color: var(--color-control);
+  color: var(--color-ink);
+}
+
+.btn--neutral {
+  background: var(--color-card);
+  border-color: var(--color-neutral-base);
+  color: var(--color-neutral-base);
+}
+
+.btn:disabled {
+  background: var(--color-neutral-soft);
+  border-color: var(--color-control);
+  color: var(--color-muted);
+  cursor: default;
+}
+
+.link {
+  min-height: var(--touch-min);
+  padding: 0 var(--space-lg);
+  border: 0;
+  background: none;
+  color: var(--color-ink);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------------- DangerBanner */
+
+.danger-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20; /* above the scrim and the sheet */
+  background: var(--color-scam-base);
+  color: var(--color-scam-on);
+}
+
+.danger-banner__inner {
+  max-width: var(--phone-width);
+  margin: 0 auto;
+  padding: var(--space-md) var(--page-gutter);
+  display: flex;
+  gap: var(--space-md);
+}
+
+.danger-banner__shape,
+.danger-banner__title {
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-bold);
+}
+
+.danger-banner__count {
+  font-weight: var(--weight-label);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ----------------------------------- AlertSheet, SafeExitCard, OfficialNumberCard */
+
+.scrim {
+  position: fixed;
+  top: var(--banner-height);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  background: var(--color-scrim);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.sheet {
+  --level-base: var(--color-watch-base);
+  --level-ink: var(--color-watch-ink);
+  --level-on: var(--color-watch-on);
+  --line-size: var(--text-title);
+  --line-leading: var(--leading-title);
+  --line-tracking: normal;
+  width: 100%;
+  max-width: var(--phone-width);
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--color-card);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: var(--elevation-sheet);
+  animation: sheet-in var(--motion-base) var(--motion-ease);
+}
+
+.sheet[data-level="scam"] {
+  --level-base: var(--color-scam-base);
+  --level-ink: var(--color-scam-ink);
+  --level-on: var(--color-scam-on);
+  --line-size: var(--text-display);
+  --line-leading: var(--leading-display);
+  --line-tracking: var(--tracking-display);
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(var(--space-xxl));
+    opacity: 0;
+  }
+}
+
+/* Paddings here are tight on purpose: with the banner up, a three-line quote and an
+   organisation name, the whole sheet still has to fit 640 px without scrolling. */
+.sheet__header {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--alert-gutter);
+  background: var(--level-base);
+  color: var(--level-on);
+}
+
+.sheet__shape,
+.sheet__title {
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-bold);
+}
+
+/* Focus lands here so a screen reader starts at the title. It is not a control,
+   so it draws no ring. */
+.sheet__title:focus-visible {
+  outline: none;
+}
+
+.card {
+  padding: var(--space-sm) var(--alert-gutter);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.card__label {
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  font-weight: var(--weight-label);
+  letter-spacing: calc(var(--space-xs) / 4);
+  color: var(--color-muted);
+}
+
+/* The line to say: a quote with a left rule in the level's colour. No italics. */
+.safe-exit__line {
+  padding-left: var(--space-md);
+  border-left: var(--space-xs) solid var(--level-base);
+  color: var(--level-ink);
+  font-size: var(--line-size);
+  line-height: var(--line-leading);
+  letter-spacing: var(--line-tracking);
+  font-weight: var(--weight-label);
+  overflow-wrap: anywhere;
+}
+
+.safe-exit__line--small {
+  font-size: var(--text-line-small);
+  line-height: var(--leading-line-small);
+  letter-spacing: normal;
+}
+
+.official__org {
+  font-weight: var(--weight-label);
+}
+
+.official__number {
+  display: block;
+  color: var(--color-ink);
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+
+.official__number[href] {
+  min-height: var(--touch-min);
+  text-decoration: underline;
+}
+
+.sheet__footer {
+  padding: var(--space-md) var(--alert-gutter);
+}
+
+/* --------------------------------------------------------------- Demo console */
+
+.demo-card {
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-card);
+  box-shadow: var(--elevation-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.demo-card__file {
+  font-weight: var(--weight-label);
+  overflow-wrap: anywhere;
+}
+
+.timeline {
+  position: relative;
+}
+
+.timeline__fill {
+  width: 0;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-neutral-base);
+}
+
+/* Where the first alert fired. The note under the bar says so in words. */
+.timeline__mark {
+  position: absolute;
+  top: calc(-1 * var(--space-xs));
+  width: var(--space-xs);
+  height: var(--space-lg);
+  margin-left: calc(var(--space-xs) / -2);
+  border-radius: var(--radius-pill);
+  background: var(--color-scam-base);
+}
+
+/* ---------------------------------------------------------------------- Motion */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
