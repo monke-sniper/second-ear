@@ -4,10 +4,10 @@
     "keyword-stand-in",
     "keyword"
   ],
-  "created_utc": "2026-11-14T23:51:50Z",
+  "created_utc": "2026-11-14T23:53:01Z",
   "heldout": {
     "file": "eval/heldout/gemini.jsonl",
-    "sha256": "80862a09dcacccedf06d28717fcc761819b7a71d0e87065378c12904f71a73c6",
+    "rows_sha256": "770a8840d693fcff9bc8e0b7691ee6372dd9d332979c1bb7248eebb771ac8677",
     "rows": 100,
     "scam": 50,
     "legitimate": 50,

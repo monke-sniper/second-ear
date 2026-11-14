@@ -9,6 +9,7 @@ any listed phrase for the baseline. Run: python -m eval.score_heldout
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from collections import Counter
 from pathlib import Path
@@ -20,7 +21,6 @@ from eval.metrics import (
     RESULTS_SCHEMA,
     binary_metrics,
     correct_by,
-    file_sha256,
     metric_rows,
     prefix_at,
     utc_now,
@@ -52,6 +52,13 @@ def load_heldout(path: Path) -> list[dict]:
         if row["label"] not in (0, 1) or not row["text"].strip():
             raise ValueError(f"{row.get('id')}: needs label 0 or 1 and some text")
     return [{**row, "text": " ".join(row["text"].split())} for row in rows]
+
+
+def rows_sha256(rows: list[dict]) -> str:
+    """A fingerprint of the set's content. It does not depend on line endings, so it is
+    the same on Windows, where git checks the file out with CRLF, and everywhere else."""
+    canonical = "\n".join(json.dumps(row, sort_keys=True, ensure_ascii=False) for row in rows)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def score_system(name: str, rows: list[dict], predict: Callable[[str], int], context: str) -> dict:
@@ -90,7 +97,7 @@ def build_payload(rows: list[dict], scorer: RiskScorer, set_path: Path) -> dict:
         "created_utc": utc_now(),
         "heldout": {
             "file": "eval/heldout/gemini.jsonl",
-            "sha256": file_sha256(set_path),
+            "rows_sha256": rows_sha256(rows),
             "rows": len(rows),
             "scam": labels[1],
             "legitimate": labels[0],

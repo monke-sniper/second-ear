@@ -20,7 +20,7 @@ Every number is copied from its results file. `n` is that metric's own denominat
 | bothbosu_test_prefix40_with_greeting | recall | 0.2875 | 160 | n = scam dialogues; 320 scored in all; tp=46 fp=0 fn=114 tn=160; first 40 % of words; original text with its greeting; scam is the positive class; any listed phrase present |
 | bothbosu_test_prefix40_with_greeting | f1 | 0.4466 | 320 | n = dialogues scored; 320 scored in all; tp=46 fp=0 fn=114 tn=160; first 40 % of words; original text with its greeting; scam is the positive class; any listed phrase present |
 
-## keyword-stand-in (heldout.json, 2026-11-14T23:51:50Z)
+## keyword-stand-in (heldout.json, 2026-11-14T23:53:01Z)
 
 Scorer: the keyword stand-in, not a trained model.
 
@@ -33,7 +33,7 @@ Scorer: the keyword stand-in, not a trained model.
 | gemini_heldout_prefix40 | recall | 0.18 | 50 | n = scam dialogues; 100 scored in all; tp=9 fp=0 fn=41 tn=50; first 40 % of words; scam is the positive class; app scorer keyword-stand-in, score >= 0.5 |
 | gemini_heldout_prefix40 | f1 | 0.3051 | 100 | n = dialogues scored; 100 scored in all; tp=9 fp=0 fn=41 tn=50; first 40 % of words; scam is the positive class; app scorer keyword-stand-in, score >= 0.5 |
 
-## keyword (heldout.json, 2026-11-14T23:51:50Z)
+## keyword (heldout.json, 2026-11-14T23:53:01Z)
 
 | test | metric | value | n | notes |
 |---|---|---|---|---|

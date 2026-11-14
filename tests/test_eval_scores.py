@@ -9,7 +9,7 @@ import json
 
 from eval import keyword_baseline
 from eval.metrics import binary_metrics, file_sha256, metric_rows, prefix_at
-from eval.score_heldout import BASELINE, EARLY_TEST, FULL_TEST, build_payload, load_heldout
+from eval.score_heldout import BASELINE, EARLY_TEST, FULL_TEST, build_payload, load_heldout, rows_sha256
 from eval.scorer_id import STAND_IN_NOTE, describe_scorer
 from server.config import ROOT
 from server.scorer import KeywordStandInScorer
@@ -85,7 +85,18 @@ def test_heldout_rows_have_the_baselines_shape_for_both_systems(tmp_path):
     assert by_key[(BASELINE, EARLY_TEST, "precision")]["value"] is None
     assert payload["confusion"]["fake-scorer"][FULL_TEST] == {"tp": 1, "fp": 1, "fn": 1, "tn": 1}
     assert payload["by_opening"][BASELINE][FULL_TEST]["hello"] == {"n": 1, "correct": 1}
-    assert payload["heldout"]["sha256"] == file_sha256(path) and payload["heldout"]["rows"] == 4
+    assert payload["heldout"]["rows"] == 4
+
+
+def test_the_set_s_fingerprint_does_not_depend_on_line_endings(tmp_path):
+    path = tiny_set(tmp_path)
+    unix = build_payload(load_heldout(path), FlagsPrize(), path)["heldout"]["rows_sha256"]
+
+    path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+    windows = build_payload(load_heldout(path), FlagsPrize(), path)["heldout"]["rows_sha256"]
+
+    assert unix == windows == rows_sha256(load_heldout(path))
+    assert unix != file_sha256(path)
 
 
 def test_heldout_results_hold_no_transcript_and_name_their_scorer(tmp_path):
