@@ -74,7 +74,9 @@ class FakeAnthropic:
     """Same surface as `anthropic.Anthropic.messages.create`; no network, no key.
 
     `gate`, when given, holds every request until the test sets it, which is how a
-    test makes a reply arrive late. `done` is set each time a request finishes.
+    test makes a reply arrive late. `held` limits that to the first `held` requests,
+    so an early answer can be slow while a later one is not. `done` is set each time
+    a request finishes, and `finished` lists the requests that have, by position.
     """
 
     def __init__(
@@ -82,23 +84,28 @@ class FakeAnthropic:
         text: str = EXPLAINER_REPLY,
         raises: BaseException | None = None,
         gate: threading.Event | None = None,
+        held: int | None = None,
     ) -> None:
         self.text = text
         self.raises = raises
         self.gate = gate
+        self.held = held
         self.calls: list[dict] = []
+        self.finished: list[int] = []
         self.done = threading.Event()
         self.messages = SimpleNamespace(create=self._create)
 
     def _create(self, **kwargs):
+        position = len(self.calls)
         self.calls.append(kwargs)
         try:
-            if self.gate is not None:
+            if self.gate is not None and (self.held is None or position < self.held):
                 self.gate.wait(timeout=3.0)
             if self.raises is not None:
                 raise self.raises
             return SimpleNamespace(content=[SimpleNamespace(text=self.text)])
         finally:
+            self.finished.append(position)
             self.done.set()
 
 

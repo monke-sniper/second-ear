@@ -1,20 +1,25 @@
-"""Builds the two messages Haiku sees: fixed instructions and the redacted transcript.
+"""Builds the two messages Haiku sees, and holds the redaction rule everything shares.
 
 In: the transcript chunks, the allowed scam types, and the organisation names.
-Out: a system prompt and a user message holding no number of two or more digits.
+Out: a system prompt and a user message holding no number of two or more digits. Also
+`redact_outbound`, the one redaction a transcript event and a push both go through.
 It does not call the model, check replies, or log anything.
 """
 
 from __future__ import annotations
 
+import re
 from typing import Mapping, Sequence
 
 from server.contracts import TranscriptChunk
 from server.numbers import DIGIT_RUN, find_number_runs, replace_number_runs
 
 REDACTED = "[number]"
-# The model sees no number of two or more digits (plan Part 1: "numbers removed").
-PROMPT_REDACT_MIN = 2
+# What docs/SPEC.md counts as a number: two or more digits. A lone "one" or "5" is
+# ordinary speech. This is the only copy of that threshold: the prompt, the reply check,
+# the wire, the pushes and the danger counter all import it from here.
+NUMBER_MIN_DIGITS = 2
+_WRITTEN_DIGITS = re.compile(r"\d+")
 
 _SYSTEM = """\
 You read a short transcript of a phone call that an automatic detector has flagged as \
@@ -46,11 +51,22 @@ def redact_for_prompt(text: str) -> str:
     of them is left in the context — then someone is reading a number out slowly, one
     digit at a time between other words, and they all go.
     """
-    redacted = replace_number_runs(text, PROMPT_REDACT_MIN, REDACTED)
+    redacted = replace_number_runs(text, NUMBER_MIN_DIGITS, REDACTED)
     lone_digits = sum(run.digit_count for run in find_number_runs(redacted))
     if lone_digits >= DIGIT_RUN:
         return replace_number_runs(redacted, 1, REDACTED)
     return redacted
+
+
+def redact_outbound(text: str) -> str:
+    """What a transcript event or a push may carry (docs/SPEC.md §3).
+
+    No written digit, in a run of any length, and no spoken number of two or more
+    digits. A code cut across chunks arrives in short pieces, so length cannot be the
+    test. A lone spoken "one" is ordinary speech and stays ("no one called").
+    """
+    spoken_gone = replace_number_runs(text, NUMBER_MIN_DIGITS, REDACTED)
+    return _WRITTEN_DIGITS.sub(REDACTED, spoken_gone)
 
 
 def system_message(scam_types: Sequence[str], org_names: Mapping[str, str]) -> str:

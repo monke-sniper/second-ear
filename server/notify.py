@@ -8,13 +8,12 @@ It never includes digits, never retries, and never blocks the alert path.
 from __future__ import annotations
 
 import logging
-import re
 import threading
 from typing import TYPE_CHECKING, Any
 
 from server.config import get_settings
 from server.contracts import ExplainerResult
-from server.explainer import REDACTED, redact_digits
+from server.explainer_prompt import redact_outbound
 
 if TYPE_CHECKING:
     import httpx
@@ -28,8 +27,6 @@ MAX_BODY = 512
 PRIORITY_HIGH = 4
 # Not in SPEC: how long one push may hold the thread that sends it.
 POST_TIMEOUT_S = 3.0
-# A spoken number of this many digits is removed from a push, like a written one.
-SPOKEN_NUMBER_MIN = 2
 
 SCAM_TITLE = "Second Ear: this sounds like a scam"
 SCAM_BODY_GENERIC = "A call happening now sounds like a scam."
@@ -50,27 +47,25 @@ SCAM_LABELS = {
     "other": "Possible scam",
 }
 
-_ANY_DIGIT = re.compile(r"\d+")
-
-
-def _scrub(text: str) -> str:
-    """No digit may reach a push: spoken and long numbers first, then any digit left."""
-    return _ANY_DIGIT.sub(REDACTED, redact_digits(text, SPOKEN_NUMBER_MIN))
-
 
 def _scam_body(result: ExplainerResult) -> str:
-    """Scam type and reason. Never the transcript, the line to say, or the callback number."""
+    """Scam type and reason. Never the transcript, the line to say, or the callback number.
+
+    No digit may reach a push, so the reason goes through the same redaction as the wire.
+    """
     if result.degraded:
         return SCAM_BODY_GENERIC
     label = SCAM_LABELS.get(result.scam_type, SCAM_LABELS["other"])
-    return _scrub(f"{label}: {result.reason}")
+    return redact_outbound(f"{label}: {result.reason}")
 
 
 class NtfyNotifier:
     """Per-call push gate.
 
-    `send_scam` and `send_code` are each attempted at most once per call, whether or
-    not the attempt succeeds; `reset()` is called when a new call starts. A missing
+    `send_scam` and `send_code` are each attempted at most once per notifier, whether
+    or not the attempt succeeds. The app makes a new notifier for every call
+    (docs/SPEC.md §9, "One notifier per call") and never calls `reset()`: re-arming one
+    in place would let an old call's late push spend the new call's attempt. A missing
     topic disables the notifier instead of raising, so a missing .env never takes the
     app down mid-demo. `client` is an `httpx.Client`-shaped object; tests pass a fake.
     `last_code` says how the last send ended ("ok", "repeat", "disabled", "http_503",
@@ -126,7 +121,12 @@ class NtfyNotifier:
         return self._sent_code
 
     def reset(self) -> None:
-        """Re-arm both push types for a new call."""
+        """Re-arm both push types in place.
+
+        Nothing in the app calls this: a new call gets a new notifier instead (see the
+        class docstring). It is kept for a caller that owns a single notifier and no
+        background work, which is how the spec test uses it.
+        """
         with self._lock:
             self._tried_scam = False
             self._tried_code = False

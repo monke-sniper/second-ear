@@ -12,7 +12,8 @@ import asyncio
 import json
 import logging
 import re
-from dataclasses import dataclass
+import threading
+from dataclasses import dataclass, replace
 from typing import Any, Callable, Coroutine, Protocol, Sequence
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -37,6 +38,11 @@ log = logging.getLogger("second_ear.live")
 
 RESET = "reset"
 UNKNOWN_EVENT = "unknown"
+# What the client is told, once per call, when a chunk could not be read.
+UNREAD_DETAIL = "could not process that audio"
+# docs/SPEC.md §2. Mid-call a chunk waits for 2 s and a pause. When the call ends no
+# more audio is coming, so what is left is heard from half a second up.
+END_TAIL_MIN_S = 0.5
 # Only a plain lowercase name is echoed back; client text is never copied into a reply.
 _EVENT_NAME = re.compile(r"[a-z_]{1,32}")
 # Background tasks of every connection, held until each one is done.
@@ -80,7 +86,9 @@ class LiveCall:
     worker thread, and the alert is sent the moment the rules raise it. The explainer
     and the pushes run as background tasks so the next chunk is never held up. A
     `reset` starts a new call; an explainer answer that arrives after it is dropped,
-    with the push that would have followed.
+    with the push that would have followed. So is an answer for an alert that a higher
+    alert has replaced. When the client leaves, the audio no chunk had closed over is
+    still heard, so the last words of a call can still raise an alert or a push.
     """
 
     def __init__(self, ws: WebSocket, services: Services) -> None:
@@ -91,8 +99,10 @@ class LiveCall:
         self.notifier = services.notifier_factory()
         self.total = 0
         self._send_lock = asyncio.Lock()
+        self._hearing = threading.Lock()
         self._tasks: set[asyncio.Task[None]] = set()
         self._open = True
+        self._unread_said = False
 
     async def run(self) -> None:
         """Serve the socket until the client leaves, then let open tasks finish."""
@@ -111,9 +121,15 @@ class LiveCall:
         finally:
             self._open = False
             log.info("audio socket closed after %d bytes", self.total)
-            # A hang-up is not a reset: a scam push already on its way still goes out.
+            # A hang-up is not a reset: the last words are still heard, and a push on
+            # its way still goes out. The tail is a task of its own, started before
+            # anything is awaited, so it outlives a handler that is cancelled while it
+            # waits for a frame (the test client does that; uvicorn does not cancel).
+            # A handler cancelled while a chunk is in Whisper loses that chunk's alert.
+            self._spawn(self._hear_tail())
             # `wait`, not `gather`: if this handler is cancelled, the tasks are not.
-            if self._tasks:
+            # In a loop, because the tail can start an explainer and a push of its own.
+            while self._tasks:
                 await asyncio.wait(self._tasks)
 
     async def _on_audio(self, data: bytes) -> None:
@@ -138,35 +154,67 @@ class LiveCall:
         self.chunker.reset()
         self.notifier = self.services.notifier_factory()
         self.total = 0
+        self._unread_said = False
 
     async def _on_chunk(self, pcm: bytes) -> None:
         try:
-            step = await asyncio.to_thread(self._hear, pcm)
+            step, unread = await asyncio.to_thread(self._hear, pcm)
         except Exception as exc:
             log.warning("chunk failed: %s", type(exc).__name__)
-            await self._send(ErrorEvent(detail="could not process that audio"))
+            await self._say_unread()
             return
+        if unread:
+            await self._say_unread()
         for event in step.events:
             await self._send(event)
-        if step.alert is not None:
+        alert = step.alert
+        # Once the client has gone an answer has nowhere to go, so the explainer is
+        # asked only when a push will use what it says.
+        if alert is not None and (self._open or alert.level is AlertLevel.scam):
             self._spawn(
-                self._enrich(step.alert, self.session.chunks, self.session.generation, self.notifier)
+                self._enrich(alert, self.session.chunks, self.session.generation, self.notifier)
             )
         if step.danger is not None:
             self._spawn(self._push_code(self.notifier))
 
-    def _hear(self, pcm: bytes) -> Step:
+    def _hear(self, pcm: bytes) -> tuple[Step, bool]:
         """Worker thread: transcribe unless the chunk is all quiet, then run the rules.
 
-        A chunk Whisper cannot read is treated as silence: the clock still moves.
+        Returns the chunk's step, and True when Whisper failed on it. Such a chunk is
+        treated as silence, so the clock still moves, but it must not pass for a quiet
+        call: the caller tells the client.
         """
-        text = ""
-        if not is_silent(pcm, self.chunker.config.pause_db):
-            try:
-                text = self.services.transcriber.transcribe(pcm, start_s=self.session.now_s).text
-            except Exception as exc:
-                log.warning("transcribe failed: %s", type(exc).__name__)
-        return self.session.ingest(text, pcm_duration_s(pcm))
+        # One chunk at a time, even when a cancelled handler left a thread running.
+        with self._hearing:
+            text, unread = "", False
+            if not is_silent(pcm, self.chunker.config.pause_db):
+                try:
+                    heard = self.services.transcriber.transcribe(pcm, start_s=self.session.now_s)
+                    text = heard.text
+                except Exception as exc:
+                    log.warning("transcribe failed: %s", type(exc).__name__)
+                    unread = True
+            return self.session.ingest(text, pcm_duration_s(pcm)), unread
+
+    async def _say_unread(self) -> None:
+        """Tell the client, once per call, that some audio could not be read."""
+        if self._unread_said:
+            return
+        self._unread_said = True
+        await self._send(ErrorEvent(detail=UNREAD_DETAIL))
+
+    async def _hear_tail(self) -> None:
+        """End of call: hear the audio that no chunk had closed over yet.
+
+        It goes down the same path as any chunk, so it can raise an alert, the code
+        warning and their pushes. A quiet tail stops in `_hear`, like a quiet chunk.
+        Nothing is sent: the socket is closed, and `_send` knows it.
+        """
+        # `flush()` returns a tail of at least `min_s`; the call is over, so lower it.
+        self.chunker.config = replace(self.chunker.config, min_s=END_TAIL_MIN_S)
+        tail = self.chunker.flush()
+        if tail is not None:
+            await self._on_chunk(tail)
 
     async def _enrich(
         self,
@@ -181,6 +229,11 @@ class LiveCall:
             result = await asyncio.to_thread(explain, chunks, alert.score)
             if generation != self.session.generation:
                 return  # a reset started a new call; this answer belongs to the old one
+            if self.session.outranked(alert.level):
+                return  # a higher alert went out meanwhile; its own answer is the one to show
+            # Nothing is awaited between that check and the send lock, and the lock is
+            # first come, first served: an answer that passes goes out before the next
+            # alert can.
             await self._send(explainer_event(result, alert.t_s))
             if alert.level is AlertLevel.scam:
                 await asyncio.to_thread(notifier.send_scam, result)

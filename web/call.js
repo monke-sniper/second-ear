@@ -9,6 +9,11 @@ const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.ho
 const WORKLET_URL = "audio-worklet.js";
 const PROCESSOR = "second-ear-capture";
 const RESET_MESSAGE = JSON.stringify({ type: "reset" });
+// One frame as the worklet sends it: 250 ms of 16 kHz mono s16le.
+const FRAME_BYTES = 8000;
+// Quiet sent before the socket closes: 1 s, so the server sees a pause and closes the
+// last chunk itself instead of having the last words cut off where the socket ended.
+const STOP_SILENCE_FRAMES = 4;
 // The mic hears a speakerphone across the table: leave the far voice alone, lift it.
 const MIC = {
   audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: true },
@@ -136,7 +141,10 @@ export async function startRecordingCall(bytes, handlers) {
   }
 }
 
-/** End the call: stop the tracks or the playback, close the socket and the context. */
+/**
+ * End the call: stop the tracks or the playback, send a second of quiet, close the
+ * socket and the context. The quiet is queued before the close, so it still goes out.
+ */
 export function stopCall() {
   if (live === null) {
     return;
@@ -152,6 +160,12 @@ export function stopCall() {
   }
   socket.onclose = null;
   socket.onmessage = null;
+  if (socket.readyState === WebSocket.OPEN) {
+    for (let frame = 0; frame < STOP_SILENCE_FRAMES; frame += 1) {
+      socket.send(new ArrayBuffer(FRAME_BYTES)); // a new buffer is all zeros: silence
+      sentBytes += FRAME_BYTES;
+    }
+  }
   socket.close();
   context.close().catch(() => {});
 }

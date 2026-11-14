@@ -30,6 +30,7 @@ The audio is never written to disk by the app.
 | Audio | 16 000 Hz, mono, signed 16-bit little-endian |
 | Client frame | 250 ms = 8 000 bytes (16 000 × 2 × 0.25) |
 | Chunk | cut at a pause; min 2.0 s, max 6.0 s |
+| End-of-call tail | audio after the last chunk is heard if it is ≥ 0.5 s and not silent |
 | Caution | smoothed risk ≥ 0.50 |
 | Smoothing window | mean of the last 3 chunk scores |
 | Scam | two consecutive raw scores > 0.85 |
@@ -74,6 +75,8 @@ Server → client, one JSON object per event. Canonical shapes live in `server/c
 `alert` is emitted by the rules and must not wait for the explainer — the sheet has to be on
 screen while the scammer is still talking. `explainer` follows within its 4 s budget and
 enriches the open alert; a missing or degraded `explainer` changes nothing about the level.
+An answer for an alert that a higher alert has since replaced is not sent: a slow `caution`
+answer never arrives after the `scam` alert, so it cannot overwrite the scam answer.
 
 What is sent, and when:
 
@@ -85,12 +88,18 @@ What is sent, and when:
 - `danger` is sent at most once per call.
 - A chunk with no speech, or one that comes back with no text, adds no score point and
   sends nothing. It only moves the clock.
+- A chunk Whisper fails on is treated as silence too, but the client is told: one `error`
+  with the detail `could not process that audio`, at most once per call. The client shows
+  it in the status line, so a call that is not being read does not look like a quiet one.
 - `transcript.text` has every written digit replaced with `[number]`, in a run of any
   length, and every spoken number of 2+ digits as well. A lone spoken digit is ordinary
   speech and stays (`no one called`). The raw text stays in memory, for the scorer and the
   digit count only.
 - Hanging up is not a reset: an explainer answer and a scam push already on their way are
-  allowed to finish.
+  allowed to finish. The audio no chunk had closed over is heard as well, if it is at least
+  0.5 s long and not silent. It goes through the same rules as any chunk, so the last words
+  of a call can still raise an alert or the code warning, and their pushes go out. Nothing
+  is sent to the closed socket.
 
 HTTP:
 
@@ -113,8 +122,9 @@ Signatures are listed in the code and are not to be reshaped without updating
   return every chunk that is ready. A chunk closes at a detected pause once it is ≥ 2 s, and
   is force-closed at 6 s. A pause is `pause_frames` consecutive 250 ms frames quieter than
   `pause_db` (both in `ChunkerConfig`). Input of any size is re-framed. `flush()` returns a
-  tail of ≥ 2 s or nothing, `reset()` clears. `is_silent(pcm)` is true when every frame is
-  that quiet; the app does not run Whisper on such a chunk.
+  tail of ≥ `min_s` (2 s) or nothing, `reset()` clears. At the end of a call the socket
+  lowers `min_s` on its own chunker to 0.5 s before it flushes (§3). `is_silent(pcm)` is
+  true when every frame is that quiet; the app does not run Whisper on such a chunk.
 - **`stt.StreamTranscriber.transcribe(pcm) -> TranscriptChunk`** — one chunk in, English text
   out. An `.en` model cannot translate, so it gets `language="en", task="transcribe"`; any
   other model gets `task="translate"` so non-English audio still lands in English.
@@ -296,6 +306,26 @@ Don't re-litigate these mid-build; raise them instead.
   with no build step.
 - **No CI.** A private 48-hour repo whose test job would download torch is slower than the
   bugs it catches. `pytest -q` before every commit instead.
+
+Added after the Nov 14 review:
+
+- **The end of a call is heard.** When the socket closes, `live.LiveCall` flushes its
+  chunker with the floor lowered to 0.5 s and runs the tail as its own task. Once the
+  client has gone, the explainer is asked only for a scam alert, because only that answer
+  is used (in the push). Stop in the browser sends 1 s of silence (four frames) before it
+  closes the socket, so the server usually sees a pause and closes the last chunk the
+  ordinary way.
+- **Known limits of the end of a call.** The browser's last 0.25–0.5 s before Stop never
+  reaches the server: a part-filled worklet frame is not sent, and frames still queued in
+  the page are dropped once the socket is closing. A handler that is cancelled while a
+  chunk is in Whisper (server shutdown, or the test client) loses that chunk's alert;
+  uvicorn does not cancel a handler when the client hangs up.
+- **One copy of the 2+ digits rule.** `explainer_prompt.NUMBER_MIN_DIGITS` is the only
+  definition; the prompt, the reply check, the wire, the pushes and the danger counter
+  import it. `explainer_prompt.redact_outbound` is the one function a `transcript` event
+  and a push body both go through.
+- **`NtfyNotifier.reset()` is not called by the app.** A new call gets a new notifier
+  (Phase 3, below). The method stays for its spec test.
 
 Added in Phase 5:
 

@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 
 from server.app import create_app
 from server.explainer import Explainer
+from server.live import Services
 from server.notify import NtfyNotifier
 from server.scorer import StubScorer
 from tests.helpers import FAKE_ORGS, FakeAnthropic, FakeHttp, FakeTranscriber, ScriptedScorer
@@ -34,15 +35,27 @@ class Harness:
     def notifier(self) -> NtfyNotifier:
         return NtfyNotifier(topic="test-topic", base_url="https://ntfy.test", client=self.http)
 
+    def explainer(self) -> Explainer:
+        return Explainer(client=self.anthropic, orgs=FAKE_ORGS)
+
     def client(self) -> TestClient:
         return TestClient(
             create_app(
                 transcriber=self.transcriber,
                 scorer=self.scorer,
-                explainer=Explainer(client=self.anthropic, orgs=FAKE_ORGS),
+                explainer=self.explainer(),
                 notifier_factory=self.notifier,
                 calls_dir=self.calls_dir,
             )
+        )
+
+    def services(self) -> Services:
+        """The same doubles, for a test that runs `LiveCall` without the app around it."""
+        return Services(
+            transcriber=self.transcriber,
+            scorer=self.scorer,
+            explainer=self.explainer(),
+            notifier_factory=self.notifier,
         )
 
 

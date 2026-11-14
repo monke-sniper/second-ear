@@ -10,14 +10,15 @@ from __future__ import annotations
 from typing import Sequence
 
 from server.contracts import DangerDecision, TranscriptChunk
+from server.explainer_prompt import NUMBER_MIN_DIGITS
 from server.numbers import find_number_runs, replace_number_runs
 
 # Frozen by docs/SPEC.md §2.
 DIGIT_MIN = 6
 WINDOW_S = 10.0
 RISK_GATE = 0.50
-# A lone "one" or "5" is ordinary speech, not a number being read out.
-MIN_RUN_DIGITS = 2
+# `NUMBER_MIN_DIGITS` is the 2+ digits rule: a lone "one" or "5" is ordinary speech, not
+# a number being read out. Its one copy is kept with the redaction that shares it.
 
 
 def normalize_spoken_numbers(text: str) -> str:
@@ -29,13 +30,13 @@ def normalize_spoken_numbers(text: str) -> str:
     really") is left as it was. The result is transient — count it and drop it.
     Never log it, never put it on a decision, never send it anywhere.
     """
-    return replace_number_runs(text, MIN_RUN_DIGITS)
+    return replace_number_runs(text, NUMBER_MIN_DIGITS)
 
 
 def count_digits(text: str) -> int:
-    """How many digits are being read out: numbers of `MIN_RUN_DIGITS` or more only."""
+    """How many digits are being read out: numbers of `NUMBER_MIN_DIGITS` or more only."""
     return sum(
-        run.digit_count for run in find_number_runs(text) if run.digit_count >= MIN_RUN_DIGITS
+        run.digit_count for run in find_number_runs(text) if run.digit_count >= NUMBER_MIN_DIGITS
     )
 
 

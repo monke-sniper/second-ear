@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 import math
-import re
 from dataclasses import dataclass
 
 from server import alerts, danger
@@ -29,24 +28,13 @@ from server.contracts import (
     TranscriptEvent,
     WireModel,
 )
-from server.explainer import REDACTED, Explainer, redact_digits
+from server.explainer import Explainer
+from server.explainer_prompt import redact_outbound
 from server.scorer import RiskScorer
 
 log = logging.getLogger("second_ear.pipeline")
 
 _RANK = {AlertLevel.none: 0, AlertLevel.caution: 1, AlertLevel.scam: 2}
-# docs/SPEC.md §3: on the wire a spoken number goes at two digits, a written digit always.
-WIRE_SPOKEN_MIN = 2
-_WRITTEN_DIGITS = re.compile(r"\d+")
-
-
-def wire_text(text: str) -> str:
-    """What `transcript.text` may carry: no written digit, no spoken number of 2+ digits.
-
-    A code cut across chunks arrives in short pieces, so length cannot be the test.
-    A lone spoken "one" is ordinary speech and stays ("no one called").
-    """
-    return _WRITTEN_DIGITS.sub(REDACTED, redact_digits(text, WIRE_SPOKEN_MIN))
 
 
 @dataclass(frozen=True)
@@ -71,7 +59,8 @@ class CallSession:
     `alerts.decide` stays a pure function; this class is what remembers the highest
     level already announced, so an alert goes out only when the level rises (none →
     caution → scam) and never when it falls back. `generation` counts resets: work
-    started for an earlier call can tell that its answer is late.
+    started for an earlier call can tell that its answer is late. `outranked` says the
+    same about an answer for an alert that a higher one has since replaced.
     """
 
     def __init__(self, scorer: RiskScorer) -> None:
@@ -91,6 +80,14 @@ class CallSession:
     @property
     def history(self) -> tuple[ScorePoint, ...]:
         return tuple(self._history)
+
+    def outranked(self, level: AlertLevel) -> bool:
+        """True when an alert above `level` has already gone out in this call.
+
+        An explainer answer for `level` is then stale: the screen shows the higher
+        alert, and the older answer was written from less of the call.
+        """
+        return _RANK[level] < _RANK[self._announced]
 
     def reset(self) -> None:
         """A new call: empty transcript, no scores, no alert state, clock at zero."""
@@ -120,7 +117,7 @@ class CallSession:
         decision = alerts.decide(self._history)
         return Step(
             # On the wire a number is "[number]"; the raw text stays in memory only.
-            transcript=TranscriptEvent(text=wire_text(spoken), t_s=self.now_s),
+            transcript=TranscriptEvent(text=redact_outbound(spoken), t_s=self.now_s),
             risk=RiskEvent(score=score, t_s=self.now_s, level=decision.level),
             alert=self._rising_alert(decision),
             danger=self._danger_once(score, decision.level is AlertLevel.scam),

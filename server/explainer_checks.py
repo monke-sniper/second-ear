@@ -11,14 +11,13 @@ import json
 from dataclasses import dataclass
 from typing import Any, Collection
 
+from server.explainer_prompt import NUMBER_MIN_DIGITS
 from server.numbers import DIGIT_RUN, has_number_run
 
 # Frozen by docs/SPEC.md §5.
 SAFE_EXIT_MIN_CHARS = 3
 SAFE_EXIT_MAX_CHARS = 160
 REASON_MAX_CHARS = 120
-# In the line the person says out loud, even a short spoken number is refused.
-SPOKEN_NUMBER_MIN = 2
 
 OK = "ok"
 BAD_JSON = "bad_json"
@@ -58,7 +57,8 @@ def _safe_exit_ok(line: str) -> bool:
         return False
     if any(char.isdigit() for char in line):
         return False
-    return not has_number_run(line, SPOKEN_NUMBER_MIN)
+    # In the line the person says out loud, even a short spoken number is refused.
+    return not has_number_run(line, NUMBER_MIN_DIGITS)
 
 
 def check_reply(
