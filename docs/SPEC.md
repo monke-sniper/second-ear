@@ -119,7 +119,9 @@ Signatures are listed in the code and are not to be reshaped without updating
   out. An `.en` model cannot translate, so it gets `language="en", task="transcribe"`; any
   other model gets `task="translate"` so non-English audio still lands in English.
   `vad_filter=True` so silence never becomes invented words, and
-  `condition_on_previous_text=False` so each chunk is decoded on its own. If CUDA fails, at
+  `condition_on_previous_text=False` so each chunk is decoded on its own.
+  `temperature=0.0` so a chunk is decoded once, with none of Whisper's retries at higher
+  temperatures (§10 has the timing that decided it). If CUDA fails, at
   load or on a decode, the model is reloaded on cpu/int8 and stays there. `warmup()`
   decodes once with the VAD off, so that failure shows at startup and not on the first
   word of a call. Target: ≤ 1 s behind the call on the 4060.
@@ -310,12 +312,16 @@ Added in Phase 3:
 - The CUDA runtime libraries Whisper needs (`cublas64_12.dll` was not found on Nov 14).
   Until they are installed Whisper runs on cpu/int8. Installing them is a dependency
   decision, so it is not made in passing.
-- One slow decode on cpu/int8, measured Nov 14. A 6 s slice of `tts_scam.wav` in which a
-  code is read aloud took 16.6 s and 14.5 s to transcribe (two runs), against about 0.7 s
-  for the slices around it. In the demo replay the code warning for it came about 16 s
-  late and counted 110 digits, where the same audio decoded cleanly counts 12. The same
-  slice took 1.5 s with `temperature=0.0` and 0.7 s with `without_timestamps=True`.
-  Changing Whisper's decode options is a §4 decision, so it is not made in passing.
+- A wrong digit count on one slice, cpu/int8, Nov 14. The chunker cuts `tts_scam.wav` at
+  6 s in the middle of a code being read aloud. With Whisper's default temperature retries
+  that slice took 16.6 s and 14.5 s to transcribe (two runs), against about 0.7 s for the
+  slices around it, and in the demo replay the code warning arrived about 17 s after the
+  chunk closed. With `temperature=0.0` (now in `stt.decode_options`, §4) the slice takes
+  1.9 s, 2.2 s and 1.4 s (three runs) and the warning arrives 1.75 s after the chunk
+  closes. Still open: Whisper repeats itself on that slice and returns 110 digits where a
+  clean decode of the same audio counts 7, and the whole read-out is 12. The warning fires
+  on time; the count on the banner is wrong. `without_timestamps=True` gave 7 digits in
+  0.6 s on that slice. It is a second decode change and has not been made.
 - Kaggle API token for the cross-dataset test (Sunday only).
 - A recorded demo call at `eval/calls/demo_scam.wav` and a matching row in `labels.csv`.
 - The design system in `docs/design/` was authored at scaffold time, not sourced from a

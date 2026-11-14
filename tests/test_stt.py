@@ -72,6 +72,17 @@ def test_every_decode_is_independent_and_vad_filtered():
     assert call["beam_size"] == 1
 
 
+def test_a_chunk_is_decoded_once_with_no_temperature_retries():
+    factory = FakeFactory()
+    transcriber = StreamTranscriber(model_factory=factory)
+
+    transcriber.transcribe(tone_frame() * 8)
+    transcriber.warmup()
+
+    assert decode_options(SttConfig())["temperature"] == 0.0
+    assert [call["temperature"] for call in factory.models[0].calls] == [0.0, 0.0]
+
+
 def test_transcribe_joins_segments_and_times_the_chunk():
     transcriber = StreamTranscriber(model_factory=FakeFactory())
 

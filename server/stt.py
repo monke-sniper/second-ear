@@ -24,6 +24,10 @@ FALLBACK_DEVICE = "cpu"
 FALLBACK_COMPUTE_TYPE = "int8"
 # English-only checkpoints ("base.en", "small.en") cannot translate.
 ENGLISH_ONLY_SUFFIX = ".en"
+# One pass per chunk. faster-whisper's default retries a doubtful decode at five higher
+# temperatures; on cpu/int8 that took a 6 s chunk of read-out digits to about 16 s
+# (docs/SPEC.md §10), far too late for a code warning.
+TEMPERATURE = 0.0
 
 # (model_size, device, compute_type) -> an object with faster-whisper's `transcribe`.
 ModelFactory = Callable[[str, str, str], Any]
@@ -49,6 +53,7 @@ def decode_options(config: SttConfig) -> dict[str, Any]:
     other model keeps the configured language and translates into English. Chunks are
     always decoded on their own (`condition_on_previous_text=False`), so one chunk's
     mistake cannot be repeated into the next and one call cannot leak into another.
+    `temperature=0.0` means one decode per chunk and no retries.
     """
     english_only = config.model_size.endswith(ENGLISH_ONLY_SUFFIX)
     return {
@@ -57,6 +62,7 @@ def decode_options(config: SttConfig) -> dict[str, Any]:
         "vad_filter": config.vad_filter,
         "beam_size": config.beam_size,
         "condition_on_previous_text": False,
+        "temperature": TEMPERATURE,
     }
 
 
