@@ -11,7 +11,7 @@ Phone A plays the call on speaker. A laptop nearby has this app open; its mic he
 
 1. Capture mic audio as 250 ms frames, 16 kHz mono s16le PCM.
 2. Cut 2–6 s chunks at pauses.
-3. Transcribe each chunk to English (faster-whisper, `base.en`, CUDA).
+3. Transcribe each chunk to English (faster-whisper, `base.en`, CUDA; cpu/int8 if CUDA fails).
 4. Score the running transcript 0..1 (DistilBERT, last 256 tokens, left-truncated).
 5. Turn scores into an alert level: `none` / `caution` / `scam`.
 6. Count spoken digits in a 10 s window and raise a code warning when gated on.
@@ -36,7 +36,7 @@ The audio is never written to disk by the app.
 | Scam stickiness | once scam, scam for the rest of the call |
 | Digit warning | ≥ 6 digits counted within the last 10.0 s |
 | Digit counting | spoken or written; only numbers of 2+ digits count; `oh` is 0 only next to another number word |
-| Digit gate | fires only while risk > 0.50 or a scam alert is active |
+| Digit gate | fires only while the latest raw chunk score > 0.50 or a scam alert is active |
 | Explainer context | last 60 s of transcript, every number of 2+ digits replaced with `[number]` |
 | Explainer timeout | 4.0 s, total |
 | Push | max one scam and one code attempt per call, success or not; never contains digits |
@@ -49,9 +49,13 @@ Comparisons are strict where written strict (`> 0.85`) and inclusive where writt
 Client → server:
 
 - **binary frame**: raw PCM as above. 8 000 bytes is one frame; the server accepts anything
-  up to 64 KiB and re-frames.
+  up to 64 KiB and re-frames. A larger message gets an `error` and is not counted.
 - **text `{"type": "reset"}`**: start a new call. Clears transcript, score history, alert
-  state, and push flags. Resets `t_s` to 0. (Phase 3)
+  state, and push flags. Resets `t_s` and the ack `total` to 0. It sends no reply. An
+  explainer answer still on its way for the old call is dropped, with the scam push that
+  would have followed it.
+- **any other text**: an `error` naming the message's `type` (`unknown` if it is not a
+  plain lowercase name). The client's text is never copied into the reply.
 
 Server → client, one JSON object per event. Canonical shapes live in `server/contracts.py`.
 
@@ -71,28 +75,60 @@ Server → client, one JSON object per event. Canonical shapes live in `server/c
 screen while the scammer is still talking. `explainer` follows within its 4 s budget and
 enriches the open alert; a missing or degraded `explainer` changes nothing about the level.
 
+What is sent, and when:
+
+- `transcript` and `risk` follow every chunk that has words. `risk.score` is that chunk's
+  raw score. `risk.level` is what the rules say now, so it can fall back from `caution`.
+- `alert` is sent only when the level rises above the highest one already sent in this call
+  (`none` → `caution` → `scam`). There is no "back to none" event: `alerts.decide` lets
+  caution clear, but the screen keeps the sheet open until the person closes it.
+- `danger` is sent at most once per call.
+- A chunk with no speech, or one that comes back with no text, adds no score point and
+  sends nothing. It only moves the clock.
+- `transcript.text` has every number of 6+ digits replaced with `[number]`. The raw text
+  stays in memory, for the scorer and the digit count only.
+- Hanging up is not a reset: an explainer answer and a scam push already on their way are
+  allowed to finish.
+
 HTTP:
 
 - `GET /health` → `{"status": "ok"}`
 - `POST /simulate` → `{"chunks": ["..."], "chunk_seconds": 4.0}` in,
   `{"timeline": [{"t_s", "score", "level"}], "alerts": [...], "explainers": [...], "danger": [...]}`
-  out. Returns **501** until Phase 3 implements the pipeline.
+  out. Runs the same session and rules as the socket, with the explainer once per alert.
+  It never sends a push. An empty chunk adds no timeline point.
 - `GET /` → `web/index.html`; the rest of `web/` is served statically.
 
 ## 4. Module contracts
 
-Bodies land in Phases 3–4. Signatures are already listed in the code and are not to be
-reshaped without updating `contracts.py` and the spec tests.
+Signatures are listed in the code and are not to be reshaped without updating
+`contracts.py` and the spec tests.
 
-- **`chunker.AudioChunker.feed(pcm) -> list[bytes]`** — append frames to an internal buffer,
+- **`chunker.AudioChunker.feed(pcm) -> list[bytes]`** — append bytes to an internal buffer,
   return every chunk that is ready. A chunk closes at a detected pause once it is ≥ 2 s, and
-  is force-closed at 6 s. `flush()` returns the tail, `reset()` clears.
+  is force-closed at 6 s. A pause is `pause_frames` consecutive 250 ms frames quieter than
+  `pause_db` (both in `ChunkerConfig`). Input of any size is re-framed. `flush()` returns a
+  tail of ≥ 2 s or nothing, `reset()` clears. `is_silent(pcm)` is true when every frame is
+  that quiet; the app does not run Whisper on such a chunk.
 - **`stt.StreamTranscriber.transcribe(pcm) -> TranscriptChunk`** — one chunk in, English text
-  out. `task="translate"` so non-English audio still lands in English. `vad_filter=True` so
-  silence never becomes invented words. Target: ≤ 1 s behind the call on the 4060.
+  out. An `.en` model cannot translate, so it gets `language="en", task="transcribe"`; any
+  other model gets `task="translate"` so non-English audio still lands in English.
+  `vad_filter=True` so silence never becomes invented words, and
+  `condition_on_previous_text=False` so each chunk is decoded on its own. If CUDA fails, at
+  load or on a decode, the model is reloaded on cpu/int8 and stays there. `warmup()`
+  decodes once with the VAD off, so that failure shows at startup and not on the first
+  word of a call. Target: ≤ 1 s behind the call on the 4060.
 - **`scorer.RiskScorer.score(transcript) -> float`** — 0..1, monotone-ish, tolerant of empty
-  input (empty → 0.0). `DistilBertRiskScorer` reads the last 256 tokens. `StubScorer` returns
-  0.0 so the app runs before the model exists.
+  input (empty → 0.0). `DistilBertRiskScorer` reads the last 256 tokens. `load_app_scorer()`
+  returns it once `models/risk-scorer/` exists and `KeywordStandInScorer` until then:
+  hand-set red-flag phrases over the last 200 words, there so the alerts can be seen
+  working, with no accuracy claim. `load_scorer()` still returns `StubScorer` (always 0.0)
+  when there is no model.
+- **`pipeline.CallSession.ingest(text, duration_s) -> Step`** — one transcribed chunk in,
+  its `transcript`, `risk`, `alert` and `danger` events out, in send order. It holds the
+  call's clock, transcript and score history, and remembers the highest alert level already
+  sent and whether the danger event went out. `reset()` starts a new call. The socket
+  (`live.LiveCall`) and `/simulate` (`pipeline.simulate`) both run it, so they cannot drift.
 - **`alerts.decide(history) -> AlertDecision`** — pure function over the full score history,
   no hidden state. Recompute each chunk; O(n) on a call of tens of chunks is free.
   `trigger` is `two_high_chunks` for scam and `smoothed_risk` for caution. `t_s` and `score`
@@ -103,8 +139,9 @@ reshaped without updating `contracts.py` and the spec tests.
   numerals), counts the digits, applies the gate. A number is number words or numerals
   separated only by spaces, commas, dots, dashes or filler sounds (`uh`, `um`). Only numbers
   of 2+ digits count, so `this one` is not a digit, and `oh` is a zero only when it touches
-  or sits between number words, so `oh, really` is not one either. The returned model has
-  `fired`, `digit_count`, `window_s`, `at_s` and nothing else.
+  or sits between number words, so `oh, really` is not one either. `risk` is the latest
+  raw chunk score, not the smoothed one. The returned model has `fired`, `digit_count`,
+  `window_s`, `at_s` and nothing else.
 - **`explainer.Explainer.explain(transcript, risk) -> ExplainerResult`** — never raises,
   never changes the alert level, degrades to the generic line, and returns within the 4 s
   budget even when the request hangs (the request is abandoned, not awaited).
@@ -212,10 +249,30 @@ Added in Phase 4:
   (`four, okay, one`) are not counted. Letters in a gift-card code are not digits.
 - **`risk_softened`** is named in `contracts.py` but has no rule yet. Nothing emits it.
 
+Added in Phase 3:
+
+- **The session holds the sheet, the rules stay pure.** `alerts.decide` is unchanged and
+  caution is still not sticky there. `CallSession` only sends an alert when the level rises.
+- **One notifier per call.** A reset makes a new one, so work left over from the old call
+  can never spend the new call's one push. After a reset the old call's late explainer
+  answer and its scam push are both dropped; after a hang-up they finish.
+- **Socket work order.** Frames are handled one at a time. Whisper and the scorer run in a
+  worker thread, the alert is sent as soon as the rules raise it, and the explainer and the
+  pushes run as background tasks behind one send lock.
+- **Known limit of wire redaction.** A number is replaced per chunk. When the chunker cuts
+  in the middle of a number, a piece shorter than 6 digits goes out as it was heard.
+- **Whisper is on the CPU on the build laptop for now.** On Nov 14 a real decode on cuda
+  failed with `cublas64_12.dll` not found, so the app fell back to cpu/int8, where a 4 s
+  chunk of speech took about 0.8 s (two runs). The earlier "runs on CUDA" check decoded
+  silence with the VAD on, which never reaches the GPU; preflight now decodes with it off.
+
 ## 10. Open items
 
 - Organisation phone numbers — every entry in `server/orgs.json` needs a verified number
   and a `verified_at` date.
+- The CUDA runtime libraries Whisper needs (`cublas64_12.dll` was not found on Nov 14).
+  Until they are installed Whisper runs on cpu/int8. Installing them is a dependency
+  decision, so it is not made in passing.
 - Kaggle API token for the cross-dataset test (Sunday only).
 - A recorded demo call at `eval/calls/demo_scam.wav` and a matching row in `labels.csv`.
 - The design system in `docs/design/` was authored at scaffold time, not sourced from a

@@ -26,7 +26,38 @@ def test_short_frame_is_accepted_and_counted(client):
 
 def test_unknown_text_event_returns_an_error_not_a_disconnect(client):
     with client.websocket_connect("/ws/audio") as ws:
-        ws.send_text('{"type": "reset"}')
+        ws.send_text('{"type": "hangup"}')
         message = ws.receive_json()
         assert message["type"] == "error"
-        assert "reset" in message["detail"]
+        assert "hangup" in message["detail"]
+
+        ws.send_bytes(silence_frame())  # the socket is still open
+        assert ws.receive_json()["type"] == "ack"
+
+
+def test_an_error_never_echoes_what_the_client_sent(client):
+    with client.websocket_connect("/ws/audio") as ws:
+        for text in ("not json", '{"type": "4111 1111 1111 1111"}', "[1, 2]"):
+            ws.send_text(text)
+            assert ws.receive_json() == {"type": "error", "detail": "event not handled: unknown"}
+
+
+def test_reset_restarts_the_ack_total(client):
+    with client.websocket_connect("/ws/audio") as ws:
+        ws.send_bytes(silence_frame())
+        ws.send_bytes(silence_frame())
+        assert ws.receive_json()["total"] == 8000
+        assert ws.receive_json()["total"] == 16000
+
+        ws.send_text('{"type": "reset"}')  # handled, and it sends nothing back
+        ws.send_bytes(silence_frame())
+        assert ws.receive_json() == {"type": "ack", "bytes": 8000, "total": 8000}
+
+
+def test_a_frame_over_64_kib_is_refused_and_not_counted(client):
+    with client.websocket_connect("/ws/audio") as ws:
+        ws.send_bytes(b"\x00" * (64 * 1024 + 2))
+        assert ws.receive_json() == {"type": "error", "detail": "audio frame too large"}
+
+        ws.send_bytes(silence_frame())
+        assert ws.receive_json() == {"type": "ack", "bytes": 8000, "total": 8000}

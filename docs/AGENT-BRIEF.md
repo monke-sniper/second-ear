@@ -10,10 +10,11 @@ Scam-call interrupter for the Veritas AI hackathon, Nov 14–15 2026. It listens
 speakerphone, scores scam risk live, tells the person a safe way to end the call, and pushes
 one alert to a family member before money moves.
 
-This repo is a scaffold. Every module exists with its typed interface and contract docstring;
-the bodies raise `NotImplementedError`. `pytest -q` is green because the plumbing works
-(`/health`, `/ws/audio` echo) and the behaviour specs in `tests/spec_*.py` are strict-xfail.
-Your job is to replace bodies, phase by phase, and delete each xfail marker as its rule lands.
+The server side is built through Phase 4. Audio goes in over `/ws/audio`, is cut into chunks,
+transcribed, scored, and turned into alert, danger and explainer events; `/simulate` replays
+text through the same `CallSession`. Nothing in `server/` raises `NotImplementedError` any
+more and no xfail marker is left. What is not built: the phone UI (`web/` is a shell), the
+trained scorer (a keyword stand-in fills the slot), and `eval/`. Build phase by phase.
 
 Read `docs/SPEC.md` before changing behaviour. It is the frozen contract: thresholds, windows,
 wire messages, data rules. If the code and SPEC disagree, SPEC wins unless I say otherwise.
@@ -44,29 +45,37 @@ Dependencies: `uv pip install -r requirements.txt`. Never add a dependency witho
 to `requirements.in` and recompiling `requirements.txt` (`uv pip compile requirements.in
 -o requirements.txt --python-version 3.11`).
 
-State after Phase 4's pure modules, for orientation: `pytest -q` is 92 passed / 0 xfailed
-(alerts, danger, explainer and notify are implemented but not wired in), `/health` answers,
-`/ws/audio` acks byte counts, `/simulate` returns 501, Whisper `base.en` runs on CUDA at about
-100 ms per second of audio, and `StubScorer` returns 0.0 until `models/risk-scorer/` exists.
+State after Phase 3, for orientation: `pytest -q` is 159 passed / 0 xfailed, `/health`
+answers, `/ws/audio` acks every frame and streams transcript, risk, alert, danger and
+explainer events, and `/simulate` returns a timeline. The app scores with
+`KeywordStandInScorer` until `models/risk-scorer/` exists, the explainer returns the generic
+line until there is an Anthropic key, and Whisper `base.en` runs on **cpu/int8** on this
+laptop (about 0.8 s for a 4 s chunk) because the CUDA libraries are missing — see the traps.
 
 ## Layout
 
 | Path | Owns |
 |---|---|
-| `server/app.py` | FastAPI wiring: `/health`, `/ws/audio`, `/simulate`, static web |
+| `server/app.py` | FastAPI wiring: `/health`, `/ws/audio`, `/simulate`, static web, startup warm-up. `create_app()` takes a transcriber, scorer, explainer and notifier factory |
+| `server/live.py` | One live call on the socket: frames in order, send lock, background explainer and pushes, reset |
+| `server/pipeline.py` | `CallSession`: one transcribed chunk in, its events out. Shared by the socket and `/simulate` |
 | `server/contracts.py` | Every wire message. Change here first, then the code |
-| `server/chunker.py` | 250 ms frames in, 2–6 s pause-cut chunks out |
-| `server/stt.py` | PCM chunk in, English text out (faster-whisper) |
-| `server/scorer.py` | Transcript in, risk 0..1 out (DistilBERT; stub until trained) |
+| `server/chunker.py` | 250 ms frames in, 2–6 s pause-cut chunks out; `is_silent` |
+| `server/stt.py` | PCM chunk in, English text out (faster-whisper, CPU fallback) |
+| `server/scorer.py` | Transcript in, risk 0..1 out (DistilBERT; keyword stand-in until trained) |
 | `server/alerts.py` | Score history in, alert decision out (pure functions) |
 | `server/danger.py` | Transcript + risk in, digit-warning decision out |
+| `server/numbers.py` | Finds spoken and written numbers in text; counting and redaction both use it |
 | `server/explainer.py` | Alert in, named scam + safe-exit line + org out (Haiku) |
+| `server/explainer_prompt.py` | The two messages Haiku sees, with every number removed |
+| `server/explainer_checks.py` | Validates Haiku's reply before any of it reaches the screen or a push |
 | `server/notify.py` | One ntfy push per alert type per call |
+| `server/orgs.py` | Loads `orgs.json`; a phone is shown only when it is verified |
 | `server/orgs.json` | Fixed organisation list; numbers verified from official sites |
 | `web/` | Phone UI, plain HTML/JS, no build step. `docs/design/` is the spec |
 | `ml/` | Colab notebooks: train the scorer, run baselines |
 | `eval/` | Offline scoring of recorded calls, results table, plots |
-| `tests/` | `test_*` = green plumbing. `spec_*` = strict-xfail behaviour specs |
+| `tests/` | `test_*` = plumbing and pipeline. `spec_*` = behaviour specs, strict-xfail only while a rule is unbuilt. `conftest.py` gives every test app fakes for Whisper, Anthropic and ntfy |
 
 ## Things that need eyes
 
@@ -109,8 +118,14 @@ Some of this repo cannot be checked by running it. It needs a person, or a sourc
   and the transcript is poisoned.
 - **Raw PCM, never `MediaRecorder`.** Only the first webm chunk carries a header; the rest do
   not decode. The worklet sends 8 000-byte frames of 16 kHz mono s16le.
-- **The first Whisper load pays CUDA init and the model download** (about 15 s here). Call
-  `warmup()` before a demo, or the first chunk looks like a hang.
+- **The first Whisper load pays CUDA init and the model download** (about 15 s here). The
+  server calls `warmup()` in a background thread at startup; give it a moment before a demo.
+- **Silence proves nothing about the GPU.** With `vad_filter=True`, silence is dropped
+  before the model runs, so a silent test decode "passes" on a machine that cannot decode
+  at all. That hid a missing `cublas64_12.dll` here: the first real word failed on cuda.
+  Warm-up and preflight now decode with the VAD off, and the app falls back to cpu/int8.
+- **One socket message is at most 64 KiB.** A test that sends a whole chunk in one message
+  gets an `error` and then waits forever for events. Send 250 ms frames (`send_audio`).
 - **MSYS shell quirks.** `/dev/null` is not translated for native tools — use `NUL`. Native
   tools need `C:/...` paths; MSYS path conversion is off.
 - **`hf_xet` is not installed**, so model downloads use plain HTTP. Slower; harmless. Do not

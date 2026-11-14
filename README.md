@@ -7,8 +7,8 @@ Nov 14–15 2026, AI + Health track.
 
 **This repo started as a scaffold at the start of build weekend and is being filled in phase
 by phase.** Every module has a typed interface and a contract docstring; the ones not built
-yet raise `NotImplementedError`. `pytest -q` is green: the plumbing runs (`/health`,
-`/ws/audio` echo, `/simulate` returns 501) and the behaviour specs in `tests/spec_*.py` pass
+yet raise `NotImplementedError`. `pytest -q` is green: the server pipeline runs end to end
+(`/health`, `/ws/audio`, `/simulate`) and the behaviour specs in `tests/spec_*.py` pass
 for every rule that has landed. What is real and what is still interface-only is listed below.
 
 ## Status, this commit
@@ -16,21 +16,28 @@ for every rule that has landed. What is real and what is still interface-only is
 Working now:
 
 - `GET /health` returns `{"status": "ok"}`
-- `WS /ws/audio` accepts binary PCM frames and echoes byte counts
+- `WS /ws/audio` takes binary PCM frames, acks each one, and streams transcript, risk,
+  alert, danger and explainer events (`server/live.py`, `pipeline.py`)
+- `POST /simulate` replays text chunks through the same pipeline and never sends a push
 - `python -m server.preflight` reports Python, CUDA, CTranslate2, Whisper, model and env state
-- The alert rules (`server/alerts.py`), the code warning (`danger.py`, `numbers.py`), the
-  Haiku explainer (`explainer.py` and its two helpers) and the family push (`notify.py`),
-  as pure modules that are not wired into the socket yet
-- `pytest -q` — 92 passed, no xfail left (the specs use fakes for Haiku and ntfy)
+- The chunker, Whisper (`stt.py`, with a CPU fallback), the alert rules (`alerts.py`), the
+  code warning (`danger.py`, `numbers.py`), the Haiku explainer (`explainer.py` and its two
+  helpers) and the family push (`notify.py`)
+- A keyword stand-in scorer, so alerts fire before the trained model exists. It is a
+  placeholder with no accuracy claim, not a result
+- `pytest -q` — 159 passed, no xfail left (the tests use fakes for Whisper, Haiku and ntfy)
 - `python scripts/smoke_explainer.py` and `python scripts/smoke_push.py` check the real
   Haiku request and a real push once `.env` has the key and the topic
 - `eval/run_eval.py --help` parses labels; scoring raises until Phase 6
 
 Interface only, body raises `NotImplementedError`:
 
-- `server/chunker.py`, `stt.py`, `scorer.py`
-- `POST /simulate` (declared, returns 501)
 - `web/*` — DOM skeleton and design tokens only, no behaviour
+- `eval/run_eval.py` scoring
+
+Not there yet, and the app says so instead of pretending: the trained scorer
+(`models/risk-scorer/`), an Anthropic key (the explainer returns its generic line without
+one), and the CUDA libraries Whisper needs on the build laptop (it runs on the CPU until then).
 
 Not in the repo, by design:
 

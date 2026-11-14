@@ -75,45 +75,46 @@ def check_ctranslate2() -> bool:
 
 
 def check_whisper(settings: "Settings") -> bool:
+    """Load Whisper and decode one second, on the configured device and then the CPU.
+
+    The VAD is off on purpose. With it on, silence is dropped before the model runs,
+    so the GPU is never used and a missing CUDA library still prints PASS.
+    """
     import numpy as np
     from faster_whisper import WhisperModel
 
-    def load(device: str, compute_type: str) -> "WhisperModel":
-        return WhisperModel(settings.whisper_model, device=device, compute_type=compute_type)
-
-    started = time.perf_counter()
-    try:
-        model = load(settings.whisper_device, settings.whisper_compute_type)
-        used = f"{settings.whisper_device}/{settings.whisper_compute_type}"
-    except Exception as exc:  # noqa: BLE001
-        _fail(f"whisper load on {settings.whisper_device}: {exc}")
-        if settings.whisper_device == "cpu":
-            return False
-        _warn("retrying on cpu/int8 — set WHISPER_DEVICE=cpu in .env if this is the only path")
-        try:
-            model = load("cpu", "int8")
-            used = "cpu/int8 (fallback)"
-        except Exception as exc2:  # noqa: BLE001
-            _fail(f"whisper load on cpu: {exc2}")
-            return False
-    load_s = time.perf_counter() - started
-
     silence = np.zeros(16_000, dtype=np.float32)
-    started = time.perf_counter()
-    try:
-        segments, info = model.transcribe(
-            silence, task="translate", vad_filter=True, beam_size=1
+
+    def probe(device: str, compute_type: str) -> str:
+        started = time.perf_counter()
+        model = WhisperModel(settings.whisper_model, device=device, compute_type=compute_type)
+        load_s = time.perf_counter() - started
+        started = time.perf_counter()
+        segments, _info = model.transcribe(
+            silence, vad_filter=False, beam_size=1, condition_on_previous_text=False
         )
-        text = "".join(segment.text for segment in segments).strip()
+        for _segment in segments:  # decoding is lazy; this is where it runs
+            pass
+        elapsed_ms = (time.perf_counter() - started) * 1000
+        return (
+            f"whisper {settings.whisper_model} on {device}/{compute_type}: "
+            f"load {load_s:.1f}s, 1 s of audio decoded in {elapsed_ms:.0f} ms"
+        )
+
+    try:
+        _pass(probe(settings.whisper_device, settings.whisper_compute_type))
+        return True
     except Exception as exc:  # noqa: BLE001
-        _fail(f"whisper transcribe on {used}: {exc}")
+        if settings.whisper_device == "cpu":
+            _fail(f"whisper on cpu: {exc}")
+            return False
+        _warn(f"whisper cannot run on {settings.whisper_device}: {exc}")
+    try:
+        _pass(probe("cpu", "int8") + " (fallback: this is what the app will use)")
+        return True
+    except Exception as exc:  # noqa: BLE001
+        _fail(f"whisper on cpu/int8: {exc}")
         return False
-    elapsed_ms = (time.perf_counter() - started) * 1000
-    _pass(
-        f"whisper {settings.whisper_model} on {used}: load {load_s:.1f}s, "
-        f"1 s of silence in {elapsed_ms:.0f} ms, text={text!r}"
-    )
-    return True
 
 
 def check_import_isolation() -> bool:
@@ -138,7 +139,7 @@ def check_model_dir(settings: Settings) -> bool:
     if (target / "config.json").is_file():
         _pass(f"scorer folder {target}")
     else:
-        _warn(f"no scorer at {target} — StubScorer (always 0.0) will be used")
+        _warn(f"no scorer at {target} — the keyword stand-in scorer will be used")
     return True
 
 
