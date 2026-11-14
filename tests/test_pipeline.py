@@ -119,6 +119,46 @@ def test_no_event_carries_the_number_that_was_read_out():
     assert steps[1].transcript.text == "the card is [number] thanks"
 
 
+def test_a_code_split_across_three_chunks_leaves_no_digit_on_the_wire():
+    pieces = ["the code is 4 1", "5 9 2", "6 and that is all"]
+    session, steps = run([0.9, 0.9, 0.9], pieces)
+
+    wire = [step.transcript.text for step in steps]
+    # Booleans only: a failure here must not print what was read out.
+    has_digit = any(char.isdigit() for text in wire for char in text)
+    assert has_digit is False
+    as_expected = wire == ["the code is [number]", "[number]", "[number] and that is all"]
+    assert as_expected is True
+    # The raw text stays in memory, and the count still reads all of it.
+    raw_kept = [chunk.text for chunk in session.chunks] == pieces
+    assert raw_kept is True
+    assert [step.danger is not None for step in steps] == [False, False, True]
+    assert steps[2].danger.digit_count == 6
+
+
+def test_a_spoken_code_split_across_three_chunks_is_replaced_piece_by_piece():
+    pieces = ["it is four one", "five nine two", "six eight thank you"]
+    _session, steps = run([0.9, 0.9, 0.9], pieces)
+
+    wire = [step.transcript.text for step in steps]
+    code_words = {"four", "one", "five", "nine", "two", "six", "eight"}
+    spoken_left = any(word in code_words for text in wire for word in text.split())
+    assert spoken_left is False
+    as_expected = wire == ["it is [number]", "[number]", "[number] thank you"]
+    assert as_expected is True
+
+
+def test_a_lone_written_digit_is_replaced_and_a_lone_spoken_one_stays():
+    texts = ["press 1 now", "no one called", "this one is fine"]
+    _session, steps = run([0.1, 0.1, 0.1], texts)
+
+    assert [step.transcript.text for step in steps] == [
+        "press [number] now",
+        "no one called",
+        "this one is fine",
+    ]
+
+
 def test_reset_starts_a_new_call():
     session, _steps = run([0.9, 0.9, 0.9, 0.9, 0.9], ["hi", CARD])
     generation = session.generation

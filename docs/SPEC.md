@@ -85,8 +85,10 @@ What is sent, and when:
 - `danger` is sent at most once per call.
 - A chunk with no speech, or one that comes back with no text, adds no score point and
   sends nothing. It only moves the clock.
-- `transcript.text` has every number of 6+ digits replaced with `[number]`. The raw text
-  stays in memory, for the scorer and the digit count only.
+- `transcript.text` has every written digit replaced with `[number]`, in a run of any
+  length, and every spoken number of 2+ digits as well. A lone spoken digit is ordinary
+  speech and stays (`no one called`). The raw text stays in memory, for the scorer and the
+  digit count only.
 - Hanging up is not a reset: an explainer answer and a scam push already on their way are
   allowed to finish.
 
@@ -259,8 +261,12 @@ Added in Phase 3:
 - **Socket work order.** Frames are handled one at a time. Whisper and the scorer run in a
   worker thread, the alert is sent as soon as the rules raise it, and the explainer and the
   pushes run as background tasks behind one send lock.
-- **Known limit of wire redaction.** A number is replaced per chunk. When the chunker cuts
-  in the middle of a number, a piece shorter than 6 digits goes out as it was heard.
+- **Known limit of wire redaction.** A number is replaced per chunk, and a code cut across
+  chunks arrives in short pieces, so length is not the test: a written digit always goes,
+  and a spoken number goes at two digits. What is left is one case. When the cut leaves a
+  single spoken digit alone at a chunk edge, that one word goes out as it was heard.
+  Replacing every lone `one` was the other choice; it was turned down on Nov 14 because
+  `no [number] called` reads as broken on the screen.
 - **Whisper is on the CPU on the build laptop for now.** On Nov 14 a real decode on cuda
   failed with `cublas64_12.dll` not found, so the app fell back to cpu/int8, where a 4 s
   chunk of speech took about 0.8 s (two runs). The earlier "runs on CUDA" check decoded

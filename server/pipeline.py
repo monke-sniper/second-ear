@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import math
+import re
 from dataclasses import dataclass
 
 from server import alerts, danger
@@ -28,12 +29,24 @@ from server.contracts import (
     TranscriptEvent,
     WireModel,
 )
-from server.explainer import Explainer, redact_digits
+from server.explainer import REDACTED, Explainer, redact_digits
 from server.scorer import RiskScorer
 
 log = logging.getLogger("second_ear.pipeline")
 
 _RANK = {AlertLevel.none: 0, AlertLevel.caution: 1, AlertLevel.scam: 2}
+# docs/SPEC.md §3: on the wire a spoken number goes at two digits, a written digit always.
+WIRE_SPOKEN_MIN = 2
+_WRITTEN_DIGITS = re.compile(r"\d+")
+
+
+def wire_text(text: str) -> str:
+    """What `transcript.text` may carry: no written digit, no spoken number of 2+ digits.
+
+    A code cut across chunks arrives in short pieces, so length cannot be the test.
+    A lone spoken "one" is ordinary speech and stays ("no one called").
+    """
+    return _WRITTEN_DIGITS.sub(REDACTED, redact_digits(text, WIRE_SPOKEN_MIN))
 
 
 @dataclass(frozen=True)
@@ -106,8 +119,8 @@ class CallSession:
         self._history.append(ScorePoint(t_s=self.now_s, score=score))
         decision = alerts.decide(self._history)
         return Step(
-            # On the wire a long number is "[number]"; the raw text stays in memory only.
-            transcript=TranscriptEvent(text=redact_digits(spoken), t_s=self.now_s),
+            # On the wire a number is "[number]"; the raw text stays in memory only.
+            transcript=TranscriptEvent(text=wire_text(spoken), t_s=self.now_s),
             risk=RiskEvent(score=score, t_s=self.now_s, level=decision.level),
             alert=self._rising_alert(decision),
             danger=self._danger_once(score, decision.level is AlertLevel.scam),
