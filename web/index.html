@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <title>Second Ear</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- DangerBanner — docs/design/components/danger-banner.md. Above everything, never dismissible. -->
+    <div class="danger-banner" id="danger-banner" role="alert" aria-live="assertive" hidden>
+      <span class="danger-banner__shape" aria-hidden="true">&#9632;</span>
+      <div>
+        <p class="danger-banner__title">Do not read that number out</p>
+        <p class="danger-banner__body">Hang up, then call back on a number you know.</p>
+      </div>
+    </div>
+
+    <main class="app" data-screen="ready">
+      <header class="app__bar">
+        <h1 class="app__title">Second Ear</h1>
+        <span class="app__status" id="status">Ready</span>
+      </header>
+
+      <!-- RiskMeter — docs/design/components/risk-meter.md -->
+      <section
+        class="meter"
+        id="risk-meter"
+        role="meter"
+        aria-label="Scam risk"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="0"
+        aria-valuetext="Calm, 0 out of 100"
+      >
+        <div class="meter__row">
+          <span class="meter__shape" id="risk-shape" aria-hidden="true">&#9679;</span>
+          <span class="meter__word" id="risk-word">Calm</span>
+          <span class="meter__score" id="risk-score">0</span>
+        </div>
+        <div class="meter__track" aria-hidden="true"><div class="meter__fill" id="risk-fill"></div></div>
+      </section>
+
+      <p class="hint" id="ready-hint">Put the call on speaker next to this phone.</p>
+
+      <section class="transcript" aria-label="Live transcript">
+        <p class="transcript__text" id="transcript">The call will appear here.</p>
+      </section>
+
+      <!-- AlertSheet — docs/design/components/alert-sheet.md -->
+      <div class="scrim" id="alert-scrim" hidden>
+        <section
+          class="sheet"
+          id="alert-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="alert-title"
+          hidden
+        >
+          <header class="sheet__header" id="alert-header" data-level="caution">
+            <span class="sheet__shape" id="alert-shape" aria-hidden="true">&#9650;</span>
+            <h2 class="sheet__title" id="alert-title" tabindex="-1">Be careful</h2>
+          </header>
+
+          <div class="sheet__body">
+            <!-- SafeExitCard — docs/design/components/safe-exit-card.md -->
+            <section class="card safe-exit" aria-labelledby="say-this">
+              <p class="card__label" id="say-this">SAY THIS</p>
+              <blockquote class="safe-exit__line" id="safe-exit-line">
+                I'll call you back at the number on my card.
+              </blockquote>
+            </section>
+
+            <!-- OfficialNumberCard — docs/design/components/official-number-card.md -->
+            <section class="card official" aria-labelledby="call-back">
+              <p class="card__label" id="call-back">CALL BACK</p>
+              <p class="official__org" id="official-org" hidden></p>
+              <a class="official__number" id="official-number" hidden href="#"></a>
+              <p class="official__fallback" id="official-fallback">
+                Use the number on your card or your last statement.
+              </p>
+            </section>
+          </div>
+
+          <footer class="sheet__footer">
+            <button class="btn btn--neutral" id="real-call" type="button">This is a real call</button>
+          </footer>
+        </section>
+      </div>
+
+      <div class="controls">
+        <button class="btn btn--primary" id="start" type="button">Start listening</button>
+        <button class="btn btn--outline" id="stop" type="button" hidden>Stop</button>
+      </div>
+      <button class="link" id="demo" type="button">Demo mode</button>
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

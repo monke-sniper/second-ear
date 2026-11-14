@@ -1,0 +1,20 @@
+# Direct dependencies for Second Ear. requirements.txt is compiled from this file.
+# Do not hand-edit requirements.txt; change this file and recompile:
+#   uv pip compile requirements.in -o requirements.txt --python-version 3.11
+#
+# torch is the CPU build on purpose: Whisper runs on the GPU through CTranslate2
+# (faster-whisper), and the DistilBERT scorer scores one 256-token window per
+# 4-second chunk (~30 ms on CPU). Training happens in Colab. Keeping torch CPU
+# avoids a 2.5 GB download and keeps one CUDA stack in the process.
+torch==2.14.1
+transformers==4.57.6
+faster-whisper==1.2.1
+fastapi==0.163.0
+uvicorn[standard]==0.54.0
+anthropic==2.8.0
+python-dotenv==1.2.4
+numpy==2.4.6
+soundfile==0.14.0
+matplotlib==3.11.2
+httpx==0.28.1
+pytest==9.2.0

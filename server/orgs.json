@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "note": "Numbers are null until checked on the organisation's own site. Fill phone, source_url and verified_at together; never guess a number. The explainer only renders a number that has verified_at set.",
+  "orgs": [
+    { "id": "medicare", "name": "Medicare", "phone": null, "homepage": "https://www.medicare.gov", "aliases": ["medicare", "medicare advantage", "centers for medicare"], "source_url": null, "verified_at": null },
+    { "id": "ssa", "name": "Social Security Administration", "phone": null, "homepage": "https://www.ssa.gov", "aliases": ["social security", "ssa", "social security administration"], "source_url": null, "verified_at": null },
+    { "id": "irs", "name": "Internal Revenue Service", "phone": null, "homepage": "https://www.irs.gov", "aliases": ["irs", "internal revenue", "tax office"], "source_url": null, "verified_at": null },
+    { "id": "chase", "name": "Chase", "phone": null, "homepage": "https://www.chase.com", "aliases": ["chase", "jpmorgan", "jp morgan"], "source_url": null, "verified_at": null },
+    { "id": "bank_of_america", "name": "Bank of America", "phone": null, "homepage": "https://www.bankofamerica.com", "aliases": ["bank of america", "bofa", "b of a"], "source_url": null, "verified_at": null },
+    { "id": "wells_fargo", "name": "Wells Fargo", "phone": null, "homepage": "https://www.wellsfargo.com", "aliases": ["wells fargo"], "source_url": null, "verified_at": null },
+    { "id": "citibank", "name": "Citibank", "phone": null, "homepage": "https://www.citi.com", "aliases": ["citi", "citibank"], "source_url": null, "verified_at": null },
+    { "id": "capital_one", "name": "Capital One", "phone": null, "homepage": "https://www.capitalone.com", "aliases": ["capital one"], "source_url": null, "verified_at": null },
+    { "id": "rbc", "name": "RBC Royal Bank", "phone": null, "homepage": "https://www.rbcroyalbank.com", "aliases": ["rbc", "royal bank"], "source_url": null, "verified_at": null },
+    { "id": "td", "name": "TD Canada Trust", "phone": null, "homepage": "https://www.td.com", "aliases": ["td", "td bank", "toronto dominion"], "source_url": null, "verified_at": null },
+    { "id": "scotiabank", "name": "Scotiabank", "phone": null, "homepage": "https://www.scotiabank.com", "aliases": ["scotia", "scotiabank", "bank of nova scotia"], "source_url": null, "verified_at": null },
+    { "id": "amazon", "name": "Amazon", "phone": null, "homepage": "https://www.amazon.com", "aliases": ["amazon", "amazon customer service"], "source_url": null, "verified_at": null },
+    { "id": "apple", "name": "Apple", "phone": null, "homepage": "https://www.apple.com", "aliases": ["apple", "apple support", "icloud"], "source_url": null, "verified_at": null },
+    { "id": "google", "name": "Google", "phone": null, "homepage": "https://www.google.com", "aliases": ["google", "google support"], "source_url": null, "verified_at": null },
+    { "id": "microsoft", "name": "Microsoft", "phone": null, "homepage": "https://www.microsoft.com", "aliases": ["microsoft", "windows support", "microsoft support"], "source_url": null, "verified_at": null },
+    { "id": "paypal", "name": "PayPal", "phone": null, "homepage": "https://www.paypal.com", "aliases": ["paypal"], "source_url": null, "verified_at": null },
+    { "id": "venmo", "name": "Venmo", "phone": null, "homepage": "https://venmo.com", "aliases": ["venmo"], "source_url": null, "verified_at": null },
+    { "id": "zelle", "name": "Zelle", "phone": null, "homepage": "https://www.zellepay.com", "aliases": ["zelle"], "source_url": null, "verified_at": null }
+  ]
+}
