@@ -22,8 +22,9 @@ CALLS_DIR = ROOT / "eval" / "calls"
 # The one place the Haiku id is written. Overridable from .env for the weekend.
 DEFAULT_HAIKU_MODEL = "claude-haiku-5-5"
 # The one place the Gemini id is written. Only eval/make_heldout.py calls Gemini; the
-# server never does. The newest stable Flash id on Google's models page on Nov 14.
-DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
+# server never does. A stable Flash id on Google's models page on Nov 14. The newer
+# gemini-3.8-flash timed out and answered 503 that evening, so the set was written with this.
+DEFAULT_GEMINI_MODEL = "gemini-3.6-flash"
 
 load_dotenv(ROOT / ".env")
 

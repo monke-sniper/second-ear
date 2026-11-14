@@ -1,0 +1,511 @@
+{
+  "schema": "second-ear/results-v1",
+  "systems": [
+    "keyword-stand-in",
+    "keyword"
+  ],
+  "created_utc": "2026-11-14T23:51:50Z",
+  "heldout": {
+    "file": "eval/heldout/gemini.jsonl",
+    "sha256": "80862a09dcacccedf06d28717fcc761819b7a71d0e87065378c12904f71a73c6",
+    "rows": 100,
+    "scam": 50,
+    "legitimate": 50,
+    "generator_model": "gemini-3.6-flash",
+    "brief_sha256": "2dc765ffbef1ed490b3986f26c50e3209acbb06df5d0947a9c2dabc38b4db6e9"
+  },
+  "preprocessing": {
+    "text": "as written by the generator, whitespace collapsed; no speaker labels to remove",
+    "app_scorer": "given the text as the live app would be; it does its own cleaning",
+    "prefix": "first 40 % of the words, rounded up"
+  },
+  "threshold": 0.5,
+  "scorer": {
+    "name": "keyword-stand-in",
+    "is_stand_in": true,
+    "model_folder_found": false,
+    "model_json_sha256": null,
+    "weights_sha256": null,
+    "weights_match_model_json": null,
+    "stand_in": {
+      "flags": 23,
+      "window_words": 200,
+      "flags_sha256": "f667223191f06ecd6c25b449eb4ea48621df3a1b6da509288aec5bd45a8b5790"
+    }
+  },
+  "rule": "any listed phrase present; case-insensitive, whole phrase, plural allowed",
+  "keywords": [
+    "gift card",
+    "wire transfer",
+    "bitcoin",
+    "don't tell anyone",
+    "remote access",
+    "warrant",
+    "medicare number"
+  ],
+  "rows": [
+    {
+      "system": "keyword-stand-in",
+      "test": "gemini_heldout_full",
+      "metric": "precision",
+      "value": 0.96,
+      "n": 25,
+      "notes": "n = dialogues flagged as scam; 100 scored in all; tp=24 fp=1 fn=26 tn=49; scam is the positive class; app scorer keyword-stand-in, score >= 0.5"
+    },
+    {
+      "system": "keyword-stand-in",
+      "test": "gemini_heldout_full",
+      "metric": "recall",
+      "value": 0.48,
+      "n": 50,
+      "notes": "n = scam dialogues; 100 scored in all; tp=24 fp=1 fn=26 tn=49; scam is the positive class; app scorer keyword-stand-in, score >= 0.5"
+    },
+    {
+      "system": "keyword-stand-in",
+      "test": "gemini_heldout_full",
+      "metric": "f1",
+      "value": 0.64,
+      "n": 100,
+      "notes": "n = dialogues scored; 100 scored in all; tp=24 fp=1 fn=26 tn=49; scam is the positive class; app scorer keyword-stand-in, score >= 0.5"
+    },
+    {
+      "system": "keyword-stand-in",
+      "test": "gemini_heldout_prefix40",
+      "metric": "precision",
+      "value": 1.0,
+      "n": 9,
+      "notes": "n = dialogues flagged as scam; 100 scored in all; tp=9 fp=0 fn=41 tn=50; first 40 % of words; scam is the positive class; app scorer keyword-stand-in, score >= 0.5"
+    },
+    {
+      "system": "keyword-stand-in",
+      "test": "gemini_heldout_prefix40",
+      "metric": "recall",
+      "value": 0.18,
+      "n": 50,
+      "notes": "n = scam dialogues; 100 scored in all; tp=9 fp=0 fn=41 tn=50; first 40 % of words; scam is the positive class; app scorer keyword-stand-in, score >= 0.5"
+    },
+    {
+      "system": "keyword-stand-in",
+      "test": "gemini_heldout_prefix40",
+      "metric": "f1",
+      "value": 0.3051,
+      "n": 100,
+      "notes": "n = dialogues scored; 100 scored in all; tp=9 fp=0 fn=41 tn=50; first 40 % of words; scam is the positive class; app scorer keyword-stand-in, score >= 0.5"
+    },
+    {
+      "system": "keyword",
+      "test": "gemini_heldout_full",
+      "metric": "precision",
+      "value": 0.9412,
+      "n": 17,
+      "notes": "n = dialogues flagged as scam; 100 scored in all; tp=16 fp=1 fn=34 tn=49; scam is the positive class; any listed phrase present"
+    },
+    {
+      "system": "keyword",
+      "test": "gemini_heldout_full",
+      "metric": "recall",
+      "value": 0.32,
+      "n": 50,
+      "notes": "n = scam dialogues; 100 scored in all; tp=16 fp=1 fn=34 tn=49; scam is the positive class; any listed phrase present"
+    },
+    {
+      "system": "keyword",
+      "test": "gemini_heldout_full",
+      "metric": "f1",
+      "value": 0.4776,
+      "n": 100,
+      "notes": "n = dialogues scored; 100 scored in all; tp=16 fp=1 fn=34 tn=49; scam is the positive class; any listed phrase present"
+    },
+    {
+      "system": "keyword",
+      "test": "gemini_heldout_prefix40",
+      "metric": "precision",
+      "value": 0.8333,
+      "n": 6,
+      "notes": "n = dialogues flagged as scam; 100 scored in all; tp=5 fp=1 fn=45 tn=49; first 40 % of words; scam is the positive class; any listed phrase present"
+    },
+    {
+      "system": "keyword",
+      "test": "gemini_heldout_prefix40",
+      "metric": "recall",
+      "value": 0.1,
+      "n": 50,
+      "notes": "n = scam dialogues; 100 scored in all; tp=5 fp=1 fn=45 tn=49; first 40 % of words; scam is the positive class; any listed phrase present"
+    },
+    {
+      "system": "keyword",
+      "test": "gemini_heldout_prefix40",
+      "metric": "f1",
+      "value": 0.1786,
+      "n": 100,
+      "notes": "n = dialogues scored; 100 scored in all; tp=5 fp=1 fn=45 tn=49; first 40 % of words; scam is the positive class; any listed phrase present"
+    }
+  ],
+  "confusion": {
+    "keyword-stand-in": {
+      "gemini_heldout_full": {
+        "tp": 24,
+        "fp": 1,
+        "fn": 26,
+        "tn": 49
+      },
+      "gemini_heldout_prefix40": {
+        "tp": 9,
+        "fp": 0,
+        "fn": 41,
+        "tn": 50
+      }
+    },
+    "keyword": {
+      "gemini_heldout_full": {
+        "tp": 16,
+        "fp": 1,
+        "fn": 34,
+        "tn": 49
+      },
+      "gemini_heldout_prefix40": {
+        "tp": 5,
+        "fp": 1,
+        "fn": 45,
+        "tn": 49
+      }
+    }
+  },
+  "by_type": {
+    "keyword-stand-in": {
+      "gemini_heldout_full": {
+        "bank_fraud": {
+          "n": 5,
+          "correct": 2
+        },
+        "bank_fraud_real": {
+          "n": 8,
+          "correct": 7
+        },
+        "delivery": {
+          "n": 8,
+          "correct": 8
+        },
+        "doctor": {
+          "n": 9,
+          "correct": 9
+        },
+        "gift_card": {
+          "n": 5,
+          "correct": 5
+        },
+        "grandchild_40": {
+          "n": 8,
+          "correct": 8
+        },
+        "grandparent": {
+          "n": 6,
+          "correct": 4
+        },
+        "irs": {
+          "n": 6,
+          "correct": 2
+        },
+        "medicare": {
+          "n": 6,
+          "correct": 1
+        },
+        "pharmacy": {
+          "n": 9,
+          "correct": 9
+        },
+        "prize": {
+          "n": 5,
+          "correct": 2
+        },
+        "romance": {
+          "n": 5,
+          "correct": 2
+        },
+        "ssn": {
+          "n": 6,
+          "correct": 5
+        },
+        "tech_support": {
+          "n": 6,
+          "correct": 1
+        },
+        "utility": {
+          "n": 8,
+          "correct": 8
+        }
+      },
+      "gemini_heldout_prefix40": {
+        "bank_fraud": {
+          "n": 5,
+          "correct": 0
+        },
+        "bank_fraud_real": {
+          "n": 8,
+          "correct": 8
+        },
+        "delivery": {
+          "n": 8,
+          "correct": 8
+        },
+        "doctor": {
+          "n": 9,
+          "correct": 9
+        },
+        "gift_card": {
+          "n": 5,
+          "correct": 3
+        },
+        "grandchild_40": {
+          "n": 8,
+          "correct": 8
+        },
+        "grandparent": {
+          "n": 6,
+          "correct": 1
+        },
+        "irs": {
+          "n": 6,
+          "correct": 0
+        },
+        "medicare": {
+          "n": 6,
+          "correct": 0
+        },
+        "pharmacy": {
+          "n": 9,
+          "correct": 9
+        },
+        "prize": {
+          "n": 5,
+          "correct": 0
+        },
+        "romance": {
+          "n": 5,
+          "correct": 0
+        },
+        "ssn": {
+          "n": 6,
+          "correct": 5
+        },
+        "tech_support": {
+          "n": 6,
+          "correct": 0
+        },
+        "utility": {
+          "n": 8,
+          "correct": 8
+        }
+      }
+    },
+    "keyword": {
+      "gemini_heldout_full": {
+        "bank_fraud": {
+          "n": 5,
+          "correct": 1
+        },
+        "bank_fraud_real": {
+          "n": 8,
+          "correct": 7
+        },
+        "delivery": {
+          "n": 8,
+          "correct": 8
+        },
+        "doctor": {
+          "n": 9,
+          "correct": 9
+        },
+        "gift_card": {
+          "n": 5,
+          "correct": 5
+        },
+        "grandchild_40": {
+          "n": 8,
+          "correct": 8
+        },
+        "grandparent": {
+          "n": 6,
+          "correct": 2
+        },
+        "irs": {
+          "n": 6,
+          "correct": 2
+        },
+        "medicare": {
+          "n": 6,
+          "correct": 0
+        },
+        "pharmacy": {
+          "n": 9,
+          "correct": 9
+        },
+        "prize": {
+          "n": 5,
+          "correct": 1
+        },
+        "romance": {
+          "n": 5,
+          "correct": 2
+        },
+        "ssn": {
+          "n": 6,
+          "correct": 1
+        },
+        "tech_support": {
+          "n": 6,
+          "correct": 2
+        },
+        "utility": {
+          "n": 8,
+          "correct": 8
+        }
+      },
+      "gemini_heldout_prefix40": {
+        "bank_fraud": {
+          "n": 5,
+          "correct": 1
+        },
+        "bank_fraud_real": {
+          "n": 8,
+          "correct": 7
+        },
+        "delivery": {
+          "n": 8,
+          "correct": 8
+        },
+        "doctor": {
+          "n": 9,
+          "correct": 9
+        },
+        "gift_card": {
+          "n": 5,
+          "correct": 1
+        },
+        "grandchild_40": {
+          "n": 8,
+          "correct": 8
+        },
+        "grandparent": {
+          "n": 6,
+          "correct": 0
+        },
+        "irs": {
+          "n": 6,
+          "correct": 0
+        },
+        "medicare": {
+          "n": 6,
+          "correct": 0
+        },
+        "pharmacy": {
+          "n": 9,
+          "correct": 9
+        },
+        "prize": {
+          "n": 5,
+          "correct": 1
+        },
+        "romance": {
+          "n": 5,
+          "correct": 0
+        },
+        "ssn": {
+          "n": 6,
+          "correct": 1
+        },
+        "tech_support": {
+          "n": 6,
+          "correct": 1
+        },
+        "utility": {
+          "n": 8,
+          "correct": 8
+        }
+      }
+    }
+  },
+  "by_opening": {
+    "keyword-stand-in": {
+      "gemini_heldout_full": {
+        "hello": {
+          "n": 26,
+          "correct": 19
+        },
+        "hi": {
+          "n": 26,
+          "correct": 20
+        },
+        "none": {
+          "n": 24,
+          "correct": 18
+        },
+        "this is": {
+          "n": 24,
+          "correct": 16
+        }
+      },
+      "gemini_heldout_prefix40": {
+        "hello": {
+          "n": 26,
+          "correct": 16
+        },
+        "hi": {
+          "n": 26,
+          "correct": 15
+        },
+        "none": {
+          "n": 24,
+          "correct": 15
+        },
+        "this is": {
+          "n": 24,
+          "correct": 13
+        }
+      }
+    },
+    "keyword": {
+      "gemini_heldout_full": {
+        "hello": {
+          "n": 26,
+          "correct": 19
+        },
+        "hi": {
+          "n": 26,
+          "correct": 15
+        },
+        "none": {
+          "n": 24,
+          "correct": 17
+        },
+        "this is": {
+          "n": 24,
+          "correct": 14
+        }
+      },
+      "gemini_heldout_prefix40": {
+        "hello": {
+          "n": 26,
+          "correct": 16
+        },
+        "hi": {
+          "n": 26,
+          "correct": 13
+        },
+        "none": {
+          "n": 24,
+          "correct": 13
+        },
+        "this is": {
+          "n": 24,
+          "correct": 12
+        }
+      }
+    }
+  },
+  "caveats": [
+    "The system scored here is the keyword stand-in (RED_FLAGS in server/scorer.py), not a trained model: models/risk-scorer/ did not exist when this ran.",
+    "The generator brief was written by the same assistant that wrote the stand-in's phrase list. The brief names kinds of call only, and the transcripts are Gemini's wording.",
+    "A re-run replaces this file; `scorer` says which scorer made the app rows."
+  ]
+}

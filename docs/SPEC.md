@@ -282,12 +282,45 @@ Known limits of this test split. The training notebook recounts each one and wri
   `second-ear/results-v1`, described in `ml/README.md`. Their `rows` are already in the
   table's columns. A metric with a zero denominator is `null`, never 0. Neither file holds
   dialogue text.
+- `eval/heldout/gemini.jsonl` — the held-out set: 100 short calls written by Gemini, 50 scam
+  and 50 legitimate, no speaker labels. The four openings (`hello`, `hi`, none, `this is`)
+  are dealt to both labels by one rule, in code. `eval/heldout_brief.py` holds the brief,
+  committed before the first request; `eval/make_heldout.py` checks format only, runs no
+  scorer and writes the set once. `gemini.meta.json` records the model and the brief's
+  hash. Never trained on, never tuned on.
+- `eval/results/heldout.json` — the same shape with two systems, so each row also carries
+  `system`: the app scorer (`load_app_scorer()`, scam at score ≥ 0.5) and the keyword
+  baseline, on the full text (`gemini_heldout_full`) and on the first 40 % of its words
+  (`gemini_heldout_prefix40`).
+- `eval/results/calls.json` — the recorded calls, from `python -m eval.run_eval`. Every wav
+  listed in `eval/calls/labels.csv` (16 kHz mono 16-bit; anything else is refused) goes
+  through the real chunker, Whisper and `CallSession`, offline, with no explainer and no
+  push. At the end of a recording the audio no chunk had closed over is heard when it is at
+  least 0.5 s and not silent, as the live socket does. Per call: label, first alert level
+  and time, scam alert time, alerted before `money_ask_s`, digit warning fired, and the
+  risk timeline. No transcript text. Totals under test `recorded_calls`, each with its n:
+  `catch_rate`, `false_alarm_rate`, both again at scam level,
+  `median_seconds_to_first_alert`, `alerted_before_money_ask`, `danger_fired_rate`.
+  **Caught means any alert, caution or scam; a false alarm is any alert on a legitimate
+  call.** That was fixed before any recorded call was scored. Alert times are audio time at
+  the end of the chunk that raised the alert; a live call adds the decode time. The run
+  refuses to score the calls a second time, and `--dry-run` writes nothing.
+- Every results file made by `eval/` has a `scorer` block: its name, the sha256 of
+  `model.json` when that file exists, and for the trained model the sha256 of its weights
+  and whether `model.json` describes them. When the scorer is the keyword stand-in, the
+  file's `caveats` say so.
 - `eval/results/table.md` — columns: test, metric, value, n, notes. One row per metric, with
   its count: `n` is that metric's own denominator (dialogues flagged as scam for precision,
   scam dialogues for recall, every dialogue scored for F1), and the notes give the total.
-  Results split by language and by failure mode.
-- `eval/results/risk_scam.png`, `eval/results/risk_normal.png`
-- `eval/results/failures.md` — at least three wrong calls, each with a snippet and the reason.
+  One section per results file and system, every number copied from its file;
+  `python -m eval.run_eval --table-only` rebuilds it. Results split by language and by
+  failure mode.
+- `eval/results/risk_scam.png`, `eval/results/risk_normal.png` — not built. `calls.json`
+  keeps each call's risk timeline, so they can be drawn without running Whisper again.
+- `eval/results/failures.md` — every missed scam and every false alarm, each with the facts
+  from the run and a snippet with its numbers replaced. Calls alerted after the money ask
+  are listed as late, not as wrong. The reason in words is added by a person after
+  listening.
 
 ## 9. Decisions made in this scaffold
 

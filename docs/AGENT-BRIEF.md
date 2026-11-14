@@ -14,8 +14,9 @@ The server side is built through Phase 4. Audio goes in over `/ws/audio`, is cut
 transcribed, scored, and turned into alert, danger and explainer events; `/simulate` replays
 text through the same `CallSession`. Nothing in `server/` raises `NotImplementedError` any
 more and no xfail marker is left. The phone UI and the demo console (`/?demo=1`) are built
-too (Phase 5). What is not built: the trained scorer (a keyword stand-in fills the slot)
-and `eval/`. Build phase by phase.
+too (Phase 5), and so are the eval tools in `eval/` (Phase 6): the Gemini held-out set and
+its scores exist, and the recorded calls are scored once, after the freeze. What is not
+built: the trained scorer (a keyword stand-in fills the slot). Build phase by phase.
 
 Read `docs/SPEC.md` before changing behaviour. It is the frozen contract: thresholds, windows,
 wire messages, data rules. If the code and SPEC disagree, SPEC wins unless I say otherwise.
@@ -77,7 +78,7 @@ laptop (about 0.8 s for a 4 s chunk) because the CUDA libraries are missing — 
 | `server/orgs.json` | Fixed organisation list; numbers verified from official sites |
 | `web/` | Phone UI, plain HTML/JS, no build step. `docs/design/` is the spec |
 | `ml/` | Colab notebooks: train the scorer, run baselines |
-| `eval/` | Offline scoring of recorded calls, results table, plots |
+| `eval/` | The Gemini held-out set and its generator, held-out scores, offline scoring of recorded calls, `failures.md`, `table.md`. Commands in `eval/README.md` |
 | `tests/` | `test_*` = plumbing and pipeline. `spec_*` = behaviour specs, strict-xfail only while a rule is unbuilt. `conftest.py` gives every test app fakes for Whisper, Anthropic and ntfy |
 
 ## Things that need eyes

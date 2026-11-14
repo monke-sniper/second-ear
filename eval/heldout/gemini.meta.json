@@ -1,0 +1,59 @@
+{
+  "schema": "second-ear/heldout-v1",
+  "created_utc": "2026-11-14T23:51:29Z",
+  "generator": {
+    "api": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+    "model": "gemini-3.6-flash",
+    "model_versions": [
+      "gemini-3.6-flash"
+    ]
+  },
+  "brief_sha256": "2dc765ffbef1ed490b3986f26c50e3209acbb06df5d0947a9c2dabc38b4db6e9",
+  "rows": 100,
+  "labels": {
+    "scam": 50,
+    "legitimate": 50
+  },
+  "by_type": {
+    "grandparent": 6,
+    "medicare": 6,
+    "ssn": 6,
+    "irs": 6,
+    "tech_support": 6,
+    "gift_card": 5,
+    "bank_fraud": 5,
+    "prize": 5,
+    "romance": 5,
+    "pharmacy": 9,
+    "doctor": 9,
+    "bank_fraud_real": 8,
+    "grandchild_40": 8,
+    "delivery": 8,
+    "utility": 8
+  },
+  "openings": {
+    "scam": {
+      "hello": 13,
+      "hi": 13,
+      "none": 12,
+      "this is": 12
+    },
+    "legitimate": {
+      "hello": 13,
+      "hi": 13,
+      "none": 12,
+      "this is": 12
+    }
+  },
+  "requests": 16,
+  "extra_rounds": 1,
+  "format_checks": [
+    "60 to 220 words",
+    "first words match the slot's opening; 'none' has no greeting and no 'This is'",
+    "no speaker labels",
+    "no brackets, parentheses or asterisks",
+    "no number of 6+ digits, spoken or written, and nothing shaped like a phone number"
+  ],
+  "whitespace": "collapsed",
+  "selection": "none: every transcript that passed the format checks is in the file; no scorer ran"
+}
