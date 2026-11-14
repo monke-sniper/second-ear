@@ -21,6 +21,9 @@ CALLS_DIR = ROOT / "eval" / "calls"
 
 # The one place the Haiku id is written. Overridable from .env for the weekend.
 DEFAULT_HAIKU_MODEL = "claude-haiku-5-5"
+# The one place the Gemini id is written. Only eval/make_heldout.py calls Gemini; the
+# server never does. The newest stable Flash id on Google's models page on Nov 14.
+DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
 
 load_dotenv(ROOT / ".env")
 
@@ -36,10 +39,16 @@ class Settings:
     whisper_compute_type: str
     risk_model_dir: Path
     orgs_path: Path
+    gemini_api_key: str | None
+    gemini_model: str
 
     @property
     def has_anthropic(self) -> bool:
         return bool(self.anthropic_api_key)
+
+    @property
+    def has_gemini(self) -> bool:
+        return bool(self.gemini_api_key)
 
     @property
     def has_ntfy(self) -> bool:
@@ -67,4 +76,6 @@ def get_settings() -> Settings:
         whisper_compute_type=env("WHISPER_COMPUTE_TYPE", "float16"),
         risk_model_dir=_path(env("RISK_MODEL_DIR"), DATA_DIR / "risk-scorer"),
         orgs_path=Path(__file__).resolve().parent / "orgs.json",
+        gemini_api_key=env("GEMINI_API_KEY") or None,
+        gemini_model=env("GEMINI_MODEL") or DEFAULT_GEMINI_MODEL,
     )
