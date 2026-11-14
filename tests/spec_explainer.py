@@ -1,20 +1,23 @@
-"""Behaviour specs for the Haiku explainer. Strict-xfail until Phase 4 lands.
+"""Behaviour specs for the Haiku explainer. Green since Phase 4.
 
 The fake client has the same surface as `anthropic.Anthropic.messages.create`, so the
-specs pin the contract without a network call and without a key.
+specs pin the contract without a network call and without a key. The real request
+is checked by scripts/smoke_explainer.py, not here.
 """
 
 from __future__ import annotations
 
+import dataclasses
 import json
+import logging
+import time
 from types import SimpleNamespace
 
 import pytest
 
-from server.explainer import GENERIC_SAFE_EXIT, Explainer, Org
+from server.config import get_settings
+from server.explainer import GENERIC_SAFE_EXIT, Explainer, Org, redact_digits
 from tests.helpers import chunk
-
-pytestmark = pytest.mark.xfail(strict=True, reason="explainer lands in phase 4 — docs/SPEC.md §5")
 
 VALID = json.dumps(
     {
@@ -137,3 +140,124 @@ def test_an_unknown_scam_type_is_rejected():
     )
     result = make_explainer(FakeAnthropic(text=text)).explain(TRANSCRIPT, 0.9)
     assert result.degraded is True
+
+
+class SlowAnthropic(FakeAnthropic):
+    """Answers correctly, but only after the budget has run out."""
+
+    def _create(self, **kwargs):
+        time.sleep(0.5)
+        return super()._create(**kwargs)
+
+
+def sent_text(fake: FakeAnthropic) -> str:
+    return json.dumps(fake.calls[0], default=str)
+
+
+def test_spoken_digit_runs_are_redacted():
+    assert redact_digits("my card is four five six seven eight nine") == "my card is [number]"
+
+
+def test_numerals_read_in_comma_groups_are_one_redacted_run():
+    out = redact_digits("it is 4111, 1111, 1111, 1111 okay")
+    leaked = any(char.isdigit() for char in out)
+    assert leaked is False
+    assert "[number]" in out
+
+
+def test_short_numbers_never_reach_the_request():
+    fake = FakeAnthropic()
+    transcript = [
+        chunk("the security code is 739", 4.0),
+        chunk("and my pin is four eight one five", 8.0),
+    ]
+    make_explainer(fake).explain(transcript, 0.9)
+    sent = sent_text(fake)
+    leaked = "739" in sent or "four eight" in sent
+    assert leaked is False
+
+
+def test_digits_read_one_at_a_time_between_words_are_redacted_too():
+    fake = FakeAnthropic()
+    text = "four okay then one okay then one okay then one okay then two okay then three"
+    make_explainer(fake).explain([chunk(text, 4.0)], 0.9)
+    sent = sent_text(fake)
+    leaked = "four okay" in sent or "then two" in sent
+    assert leaked is False
+
+
+def test_a_lone_one_is_not_redacted():
+    fake = FakeAnthropic()
+    make_explainer(fake).explain([chunk("I will take this one, thank you", 4.0)], 0.9)
+    assert "this one" in sent_text(fake)
+
+
+def test_only_the_last_minute_is_sent():
+    fake = FakeAnthropic()
+    transcript = [chunk("walrus at the start", 4.0), chunk("pelican at the end", 70.0)]
+    make_explainer(fake).explain(transcript, 0.9)
+    sent = sent_text(fake)
+    assert "pelican" in sent
+    assert "walrus" not in sent
+
+
+def test_a_slow_model_degrades_inside_the_budget():
+    explainer = Explainer(client=SlowAnthropic(), orgs=ORGS, timeout_s=0.05)
+    started = time.monotonic()
+    result = explainer.explain(TRANSCRIPT, 0.9)
+    elapsed = time.monotonic() - started
+    assert result.degraded is True
+    assert result.safe_exit_line == GENERIC_SAFE_EXIT
+    assert elapsed < 0.4
+    assert explainer.last_code == "timeout"
+
+
+def test_nothing_from_the_call_or_the_reply_is_logged(caplog):
+    caplog.set_level(logging.DEBUG)
+    transcript = [chunk("zebra pineapple 4111 1111 1111 1111", 4.0)]
+    fakes = [
+        FakeAnthropic(text="walrus is not json"),
+        FakeAnthropic(raises=RuntimeError("zebra walrus")),
+    ]
+    for fake in fakes:
+        make_explainer(fake).explain(transcript, 0.9)
+    logged = caplog.text
+    leaked = any(word in logged for word in ("zebra", "pineapple", "walrus", "4111"))
+    assert leaked is False
+    assert "explainer degraded: bad_json" in logged
+    assert "explainer degraded: request_failed:RuntimeError" in logged
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        pytest.param({"reason": "x" * 121}, id="reason-too-long"),
+        pytest.param({"reason": "Asked to read 4111 1111 1111 1111 aloud."}, id="digits-in-reason"),
+        pytest.param({"claimed_org": "paypal"}, id="org-not-in-the-list"),
+        pytest.param({"safe_exit_line": "ok"}, id="line-too-short"),
+        pytest.param({"safe_exit_line": "y" * 161}, id="line-too-long"),
+        pytest.param({"safe_exit_line": "Read back four one one one."}, id="spoken-number-in-line"),
+    ],
+)
+def test_a_reply_that_breaks_a_rule_degrades(change):
+    text = json.dumps({**json.loads(VALID), **change})
+    result = make_explainer(FakeAnthropic(text=text)).explain(TRANSCRIPT, 0.9)
+    assert result.degraded is True
+    assert result.safe_exit_line == GENERIC_SAFE_EXIT
+    assert result.official_number is None
+
+
+def test_a_reply_inside_a_code_fence_still_parses():
+    fenced = f"```json\n{VALID}\n```"
+    result = make_explainer(FakeAnthropic(text=fenced)).explain(TRANSCRIPT, 0.9)
+    assert result.degraded is False
+    assert result.scam_type == "gift_card"
+
+
+def test_without_an_api_key_there_is_no_request(monkeypatch):
+    keyless = dataclasses.replace(get_settings(), anthropic_api_key=None)
+    monkeypatch.setattr("server.explainer.get_settings", lambda: keyless)
+    explainer = Explainer(client=None, orgs=ORGS)
+    result = explainer.explain(TRANSCRIPT, 0.9)
+    assert result.degraded is True
+    assert explainer.last_code == "no_api_key"

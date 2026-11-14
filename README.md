@@ -5,11 +5,11 @@ scam risk as the conversation moves, and tells the person a safe line to say whi
 one alert to a family member. Entry for the Veritas AI International High School Hackathon,
 Nov 14–15 2026, AI + Health track.
 
-**This repo is a scaffold, committed at the start of build weekend.** Every module exists
-with its typed interface and contract docstring; the bodies raise `NotImplementedError`.
-`pytest -q` is green: the plumbing runs (`/health`, `/ws/audio` echo, `/simulate` returns 501)
-and the behaviour specs in `tests/spec_*.py` are strict-xfail so they turn green as each rule
-lands. What is scaffolded and what is real is listed below.
+**This repo started as a scaffold at the start of build weekend and is being filled in phase
+by phase.** Every module has a typed interface and a contract docstring; the ones not built
+yet raise `NotImplementedError`. `pytest -q` is green: the plumbing runs (`/health`,
+`/ws/audio` echo, `/simulate` returns 501) and the behaviour specs in `tests/spec_*.py` pass
+for every rule that has landed. What is real and what is still interface-only is listed below.
 
 ## Status, this commit
 
@@ -18,12 +18,17 @@ Working now:
 - `GET /health` returns `{"status": "ok"}`
 - `WS /ws/audio` accepts binary PCM frames and echoes byte counts
 - `python -m server.preflight` reports Python, CUDA, CTranslate2, Whisper, model and env state
-- `pytest -q` — 13 passed, 29 strict-xfail specs
+- The alert rules (`server/alerts.py`), the code warning (`danger.py`, `numbers.py`), the
+  Haiku explainer (`explainer.py` and its two helpers) and the family push (`notify.py`),
+  as pure modules that are not wired into the socket yet
+- `pytest -q` — 92 passed, no xfail left (the specs use fakes for Haiku and ntfy)
+- `python scripts/smoke_explainer.py` and `python scripts/smoke_push.py` check the real
+  Haiku request and a real push once `.env` has the key and the topic
 - `eval/run_eval.py --help` parses labels; scoring raises until Phase 6
 
 Interface only, body raises `NotImplementedError`:
 
-- `server/chunker.py`, `stt.py`, `scorer.py`, `alerts.py`, `danger.py`, `explainer.py`, `notify.py`
+- `server/chunker.py`, `stt.py`, `scorer.py`
 - `POST /simulate` (declared, returns 501)
 - `web/*` — DOM skeleton and design tokens only, no behaviour
 
@@ -57,7 +62,8 @@ server/   FastAPI app, audio pipeline, alert rules, explainer, push
 web/      Phone UI, plain HTML/JS, no build step
 ml/       Colab notebooks: train the scorer, run baselines
 eval/     Offline scoring of recorded calls, results, plots
-tests/    test_* = green plumbing, spec_* = strict-xfail behaviour specs
+tests/    test_* = green plumbing, spec_* = behaviour specs (strict-xfail until built)
+scripts/  smoke checks you run by hand against the real Haiku API and ntfy
 docs/     SPEC.md (frozen contract), design/ (UI tokens + component specs)
 ```
 

@@ -44,7 +44,8 @@ Dependencies: `uv pip install -r requirements.txt`. Never add a dependency witho
 to `requirements.in` and recompiling `requirements.txt` (`uv pip compile requirements.in
 -o requirements.txt --python-version 3.11`).
 
-Scaffold state, for orientation: `pytest -q` is 13 passed / 29 xfailed, `/health` answers,
+State after Phase 4's pure modules, for orientation: `pytest -q` is 92 passed / 0 xfailed
+(alerts, danger, explainer and notify are implemented but not wired in), `/health` answers,
 `/ws/audio` acks byte counts, `/simulate` returns 501, Whisper `base.en` runs on CUDA at about
 100 ms per second of audio, and `StubScorer` returns 0.0 until `models/risk-scorer/` exists.
 
