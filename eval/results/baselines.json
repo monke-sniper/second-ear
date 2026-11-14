@@ -1,0 +1,411 @@
+{
+  "schema": "second-ear/results-v1",
+  "system": "keyword",
+  "created_utc": "2026-11-14T20:32:55Z",
+  "dataset": {
+    "repo": "BothBosu/scam-dialogue",
+    "revision": "321b961b5ae353e19ed479b960658dcd223d5e06",
+    "test_rows": 320
+  },
+  "preprocessing": {
+    "speaker_tags": "removed",
+    "leading_greeting": "removed from the headline tests: hello, hi, hey, good morning / afternoon / evening, plus the punctuation after it; one rule for every row and both labels",
+    "greeting_removed": {
+      "test_csv": {
+        "rows": 320,
+        "greeting_removed": 320,
+        "scam": 160,
+        "legitimate": 160
+      }
+    },
+    "headline_tests": [
+      "bothbosu_test_full",
+      "bothbosu_test_prefix40"
+    ]
+  },
+  "rule": "any listed phrase present; case-insensitive, whole phrase, plural allowed",
+  "keywords": [
+    "gift card",
+    "wire transfer",
+    "bitcoin",
+    "don't tell anyone",
+    "remote access",
+    "warrant",
+    "medicare number"
+  ],
+  "rows": [
+    {
+      "test": "bothbosu_test_full",
+      "metric": "precision",
+      "value": 1.0,
+      "n": 64,
+      "notes": "n = dialogues flagged as scam; 320 scored in all; tp=64 fp=0 fn=96 tn=160; leading greeting removed, as for the model; scam is the positive class; any listed phrase present"
+    },
+    {
+      "test": "bothbosu_test_full",
+      "metric": "recall",
+      "value": 0.4,
+      "n": 160,
+      "notes": "n = scam dialogues; 320 scored in all; tp=64 fp=0 fn=96 tn=160; leading greeting removed, as for the model; scam is the positive class; any listed phrase present"
+    },
+    {
+      "test": "bothbosu_test_full",
+      "metric": "f1",
+      "value": 0.5714,
+      "n": 320,
+      "notes": "n = dialogues scored; 320 scored in all; tp=64 fp=0 fn=96 tn=160; leading greeting removed, as for the model; scam is the positive class; any listed phrase present"
+    },
+    {
+      "test": "bothbosu_test_prefix40",
+      "metric": "precision",
+      "value": 1.0,
+      "n": 46,
+      "notes": "n = dialogues flagged as scam; 320 scored in all; tp=46 fp=0 fn=114 tn=160; first 40 % of words; leading greeting removed, as for the model; scam is the positive class; any listed phrase present"
+    },
+    {
+      "test": "bothbosu_test_prefix40",
+      "metric": "recall",
+      "value": 0.2875,
+      "n": 160,
+      "notes": "n = scam dialogues; 320 scored in all; tp=46 fp=0 fn=114 tn=160; first 40 % of words; leading greeting removed, as for the model; scam is the positive class; any listed phrase present"
+    },
+    {
+      "test": "bothbosu_test_prefix40",
+      "metric": "f1",
+      "value": 0.4466,
+      "n": 320,
+      "notes": "n = dialogues scored; 320 scored in all; tp=46 fp=0 fn=114 tn=160; first 40 % of words; leading greeting removed, as for the model; scam is the positive class; any listed phrase present"
+    },
+    {
+      "test": "bothbosu_test_full_with_greeting",
+      "metric": "precision",
+      "value": 1.0,
+      "n": 64,
+      "notes": "n = dialogues flagged as scam; 320 scored in all; tp=64 fp=0 fn=96 tn=160; original text with its greeting; scam is the positive class; any listed phrase present"
+    },
+    {
+      "test": "bothbosu_test_full_with_greeting",
+      "metric": "recall",
+      "value": 0.4,
+      "n": 160,
+      "notes": "n = scam dialogues; 320 scored in all; tp=64 fp=0 fn=96 tn=160; original text with its greeting; scam is the positive class; any listed phrase present"
+    },
+    {
+      "test": "bothbosu_test_full_with_greeting",
+      "metric": "f1",
+      "value": 0.5714,
+      "n": 320,
+      "notes": "n = dialogues scored; 320 scored in all; tp=64 fp=0 fn=96 tn=160; original text with its greeting; scam is the positive class; any listed phrase present"
+    },
+    {
+      "test": "bothbosu_test_prefix40_with_greeting",
+      "metric": "precision",
+      "value": 1.0,
+      "n": 46,
+      "notes": "n = dialogues flagged as scam; 320 scored in all; tp=46 fp=0 fn=114 tn=160; first 40 % of words; original text with its greeting; scam is the positive class; any listed phrase present"
+    },
+    {
+      "test": "bothbosu_test_prefix40_with_greeting",
+      "metric": "recall",
+      "value": 0.2875,
+      "n": 160,
+      "notes": "n = scam dialogues; 320 scored in all; tp=46 fp=0 fn=114 tn=160; first 40 % of words; original text with its greeting; scam is the positive class; any listed phrase present"
+    },
+    {
+      "test": "bothbosu_test_prefix40_with_greeting",
+      "metric": "f1",
+      "value": 0.4466,
+      "n": 320,
+      "notes": "n = dialogues scored; 320 scored in all; tp=46 fp=0 fn=114 tn=160; first 40 % of words; original text with its greeting; scam is the positive class; any listed phrase present"
+    }
+  ],
+  "confusion": {
+    "bothbosu_test_full": {
+      "tp": 64,
+      "fp": 0,
+      "fn": 96,
+      "tn": 160
+    },
+    "bothbosu_test_prefix40": {
+      "tp": 46,
+      "fp": 0,
+      "fn": 114,
+      "tn": 160
+    },
+    "bothbosu_test_full_with_greeting": {
+      "tp": 64,
+      "fp": 0,
+      "fn": 96,
+      "tn": 160
+    },
+    "bothbosu_test_prefix40_with_greeting": {
+      "tp": 46,
+      "fp": 0,
+      "fn": 114,
+      "tn": 160
+    }
+  },
+  "by_type": {
+    "bothbosu_test_full": {
+      "delivery": {
+        "n": 40,
+        "correct": 40
+      },
+      "insurance": {
+        "n": 40,
+        "correct": 40
+      },
+      "refund": {
+        "n": 40,
+        "correct": 3
+      },
+      "reward": {
+        "n": 40,
+        "correct": 40
+      },
+      "ssn": {
+        "n": 40,
+        "correct": 4
+      },
+      "support": {
+        "n": 40,
+        "correct": 17
+      },
+      "telemarketing": {
+        "n": 40,
+        "correct": 40
+      },
+      "wrong": {
+        "n": 40,
+        "correct": 40
+      }
+    },
+    "bothbosu_test_prefix40": {
+      "delivery": {
+        "n": 40,
+        "correct": 40
+      },
+      "insurance": {
+        "n": 40,
+        "correct": 40
+      },
+      "refund": {
+        "n": 40,
+        "correct": 0
+      },
+      "reward": {
+        "n": 40,
+        "correct": 40
+      },
+      "ssn": {
+        "n": 40,
+        "correct": 1
+      },
+      "support": {
+        "n": 40,
+        "correct": 5
+      },
+      "telemarketing": {
+        "n": 40,
+        "correct": 40
+      },
+      "wrong": {
+        "n": 40,
+        "correct": 40
+      }
+    },
+    "bothbosu_test_full_with_greeting": {
+      "delivery": {
+        "n": 40,
+        "correct": 40
+      },
+      "insurance": {
+        "n": 40,
+        "correct": 40
+      },
+      "refund": {
+        "n": 40,
+        "correct": 3
+      },
+      "reward": {
+        "n": 40,
+        "correct": 40
+      },
+      "ssn": {
+        "n": 40,
+        "correct": 4
+      },
+      "support": {
+        "n": 40,
+        "correct": 17
+      },
+      "telemarketing": {
+        "n": 40,
+        "correct": 40
+      },
+      "wrong": {
+        "n": 40,
+        "correct": 40
+      }
+    },
+    "bothbosu_test_prefix40_with_greeting": {
+      "delivery": {
+        "n": 40,
+        "correct": 40
+      },
+      "insurance": {
+        "n": 40,
+        "correct": 40
+      },
+      "refund": {
+        "n": 40,
+        "correct": 0
+      },
+      "reward": {
+        "n": 40,
+        "correct": 40
+      },
+      "ssn": {
+        "n": 40,
+        "correct": 1
+      },
+      "support": {
+        "n": 40,
+        "correct": 5
+      },
+      "telemarketing": {
+        "n": 40,
+        "correct": 40
+      },
+      "wrong": {
+        "n": 40,
+        "correct": 40
+      }
+    }
+  },
+  "keyword_hits": {
+    "bothbosu_test_full": {
+      "gift card": {
+        "scam": 42,
+        "legitimate": 0
+      },
+      "wire transfer": {
+        "scam": 2,
+        "legitimate": 0
+      },
+      "bitcoin": {
+        "scam": 0,
+        "legitimate": 0
+      },
+      "don't tell anyone": {
+        "scam": 0,
+        "legitimate": 0
+      },
+      "remote access": {
+        "scam": 18,
+        "legitimate": 0
+      },
+      "warrant": {
+        "scam": 2,
+        "legitimate": 0
+      },
+      "medicare number": {
+        "scam": 0,
+        "legitimate": 0
+      }
+    },
+    "bothbosu_test_prefix40": {
+      "gift card": {
+        "scam": 40,
+        "legitimate": 0
+      },
+      "wire transfer": {
+        "scam": 0,
+        "legitimate": 0
+      },
+      "bitcoin": {
+        "scam": 0,
+        "legitimate": 0
+      },
+      "don't tell anyone": {
+        "scam": 0,
+        "legitimate": 0
+      },
+      "remote access": {
+        "scam": 5,
+        "legitimate": 0
+      },
+      "warrant": {
+        "scam": 1,
+        "legitimate": 0
+      },
+      "medicare number": {
+        "scam": 0,
+        "legitimate": 0
+      }
+    },
+    "bothbosu_test_full_with_greeting": {
+      "gift card": {
+        "scam": 42,
+        "legitimate": 0
+      },
+      "wire transfer": {
+        "scam": 2,
+        "legitimate": 0
+      },
+      "bitcoin": {
+        "scam": 0,
+        "legitimate": 0
+      },
+      "don't tell anyone": {
+        "scam": 0,
+        "legitimate": 0
+      },
+      "remote access": {
+        "scam": 18,
+        "legitimate": 0
+      },
+      "warrant": {
+        "scam": 2,
+        "legitimate": 0
+      },
+      "medicare number": {
+        "scam": 0,
+        "legitimate": 0
+      }
+    },
+    "bothbosu_test_prefix40_with_greeting": {
+      "gift card": {
+        "scam": 40,
+        "legitimate": 0
+      },
+      "wire transfer": {
+        "scam": 0,
+        "legitimate": 0
+      },
+      "bitcoin": {
+        "scam": 0,
+        "legitimate": 0
+      },
+      "don't tell anyone": {
+        "scam": 0,
+        "legitimate": 0
+      },
+      "remote access": {
+        "scam": 5,
+        "legitimate": 0
+      },
+      "warrant": {
+        "scam": 1,
+        "legitimate": 0
+      },
+      "medicare number": {
+        "scam": 0,
+        "legitimate": 0
+      }
+    }
+  },
+  "caveats": [
+    "Fixed phrase list from ml/README.md, set before the test split was scored. Not tuned."
+  ]
+}

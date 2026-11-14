@@ -192,7 +192,8 @@ Signatures are listed in the code and are not to be reshaped without updating
 
 ## 6. Data and training
 
-Verified against the dataset on Nov 14:
+Verified against the dataset on Nov 14, at hub revision
+`321b961b5ae353e19ed479b960658dcd223d5e06`. Both notebooks pin that revision.
 
 - `BothBosu/scam-dialogue` on Hugging Face, Apache-2.0, synthetic, generated with
   `meta-llama-3-70b-instruct`.
@@ -201,20 +202,62 @@ Verified against the dataset on Nov 14:
   label 0 = legitimate (`delivery`, `insurance`, `telemarketing`, `wrong`).
 - Speaker tags are **inline and lowercase**: `caller:` and `receiver:` — not `Suspect:` /
   `Innocent:` as the earlier draft assumed. Strip them; live transcripts have no labels.
+- One training dialogue is a word-for-word copy of a test dialogue, and one training dialogue
+  appears twice.
+- Every dialogue, all 1 280 and all 320, opens with a greeting.
 
-Training rules:
+Training rules. This is recipe v3, `RUN_NAME` `distilbert-prefix-v3-opencrop`. **v3 is the
+final model whatever it scores, and nothing is chosen using the test split.**
 
-- Split by conversation **before** augmenting; the given test split is the test split.
-- Augment train and val only: prefixes at 20/40/60/80/100 % of each dialogue's words, same
-  label.
+- Training data is BothBosu only. There is no matched-pairs set.
+- Clean every row the same way, in train, val and test, before the split: strip the speaker
+  tags, collapse whitespace, then remove one leading greeting with `strip_greeting` (`hello`,
+  `hi`, `hey`, `good morning` / `afternoon` / `evening`, and the punctuation after it). One
+  rule for every row and both labels. The rule lives in the notebooks' shared helpers cell
+  and, copied verbatim, in `server/greeting.py`; `tests/test_scorer.py` pins the pattern. A
+  rule change changes all three together (§4).
+- Drop the two leaking training rows (the copy of a test dialogue and the duplicate). Then
+  split train into train and val by conversation, 90/10, stratified by `type`, seed 42:
+  1 150 train and 128 val conversations. The given test split is the test split, untouched
+  at 320. All of this happens **before** augmenting.
+- Augment train and val only, in two steps. First, prefixes at 20/40/60/80/100 % of each
+  dialogue's words, same label. Then, for every prefix example, one copy with its first k
+  words removed, k uniform 5 to 15, seeded, same label; an example of k words or fewer gets
+  no copy. That gives 5 750 + 5 728 = 11 478 training examples and 640 + 639 = 1 279 val
+  examples. The test split is never augmented.
 - `distilbert-base-uncased`, `max_length=256`, `truncation_side="left"`, 3 epochs,
   `lr=2e-5`, fp16. Checkpoint to Drive every epoch.
-- Report precision, recall and F1 on full test dialogues **and** on 40 % prefixes.
+- The model is the end of epoch 3. Val is watched; it never picks a checkpoint or a
+  threshold.
+- Report precision, recall and F1 at P(scam) ≥ 0.5 on full test dialogues **and** on 40 %
+  prefixes. The headline tests, `bothbosu_test_full` and `bothbosu_test_prefix40`, use the
+  greeting-free text. A second pair, `…_with_greeting`, scores the original text, so the
+  before and after sit side by side.
 - Never train on the held-out Gemini set. Never tune on the 20 improvised calls; they are
   scored once, after the freeze.
-- Baselines on the same split: keyword list, and Claude Haiku zero-shot.
-- The matched-pairs generator (Claude, at kickoff) must hold topic constant between the scam
-  and the real call and vary endings the same way in both.
+- Baseline on the same four tests: the keyword list in `ml/README.md`, any hit means scam,
+  matched case-insensitively as whole phrases with plurals allowed. The list and the
+  matching rule are fixed; never tune them on the test split. A Claude Haiku zero-shot
+  baseline is not built.
+
+Two of these depart from Part 1 of the plan, by the owner's decision on Nov 14, because the
+build is solo: there is no matched-pairs set and no Haiku zero-shot baseline.
+
+Known limits of this test split. The training notebook recounts each one and writes it to
+`model.json`.
+
+- The dialogues are templated: 298 of the 320 test dialogues share their first 12 words with
+  a training conversation.
+- The opening gives the label away. With the greeting left in, looking up a test dialogue's
+  first 6 words among the training conversations and taking their majority label is right
+  for 295 of 320, with no model at all; in the train CSV, 639 of 640 scam dialogues open
+  with `hello` and 384 of the 385 that open with `hi` are legitimate. With the greeting
+  removed it is still 289 of 320, because the next sentence is templated too. That is why
+  the opening-crop copies exist.
+- 3 of the 320 40 % test prefixes are word for word identical to a training example.
+- So scores on this split flatter the model. `model.json` carries two diagnostics outside
+  its table rows: the headline tests with the first 12 words removed, and P(scam) for six
+  hand-written lines, each bare, behind `hello` and behind `hi`.
 
 ## 7. Privacy
 
@@ -225,9 +268,14 @@ Training rules:
 
 ## 8. Eval outputs
 
-- `eval/results/model.json`, `eval/results/baselines.json`
+- `eval/results/model.json`, `eval/results/baselines.json` — one shape,
+  `second-ear/results-v1`, described in `ml/README.md`. Their `rows` are already in the
+  table's columns. A metric with a zero denominator is `null`, never 0. Neither file holds
+  dialogue text.
 - `eval/results/table.md` — columns: test, metric, value, n, notes. One row per metric, with
-  its count. Results split by language and by failure mode.
+  its count: `n` is that metric's own denominator (dialogues flagged as scam for precision,
+  scam dialogues for recall, every dialogue scored for F1), and the notes give the total.
+  Results split by language and by failure mode.
 - `eval/results/risk_scam.png`, `eval/results/risk_normal.png`
 - `eval/results/failures.md` — at least three wrong calls, each with a snippet and the reason.
 
