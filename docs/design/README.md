@@ -22,6 +22,9 @@ files are canonical for anatomy and copy, `screens.md` is canonical for what eac
   32–44 px. If a label and a value compete, the value wins.
 - **Colour is never the only signal.** Each risk band carries a word and a shape: calm `●`,
   watch `▲`, scam `■`.
+- **Two border tokens.** `color.border` is a decorative divider (1.48:1 — fine for a rule
+  between cards). Anything that carries meaning — a button outline, an input edge, a focus
+  ring — uses `color.control` (4.76:1), because WCAG 1.4.11 asks 3:1 of a control boundary.
 - **One alert at a time.** The DangerBanner sits above the AlertSheet; nothing else stacks.
 - **Labels never drop.** "Say this" and "Call back" appear on every alert screen, at every
   phone size. If the layout cannot fit them, the layout is wrong.

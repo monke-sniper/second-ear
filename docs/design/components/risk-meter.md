@@ -38,7 +38,7 @@ smaller than 28 px.
 - Container: `role="meter"`, `aria-valuemin="0"`, `aria-valuemax="100"`, `aria-valuenow`,
   `aria-valuetext="Scam, 92 out of 100"`.
 - The word is not decorative; screen readers get the band, not just the number.
-- Contrast: each band's `ink` on `soft` is at least 4.5:1.
+- Contrast: each band's `ink` on its `soft` is 8.2:1 or better.
 
 ## Don't
 

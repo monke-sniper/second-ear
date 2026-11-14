@@ -35,7 +35,7 @@ Full-bleed band pinned to the top of the viewport, above the AlertSheet, `z-inde
 - `role="alert"`, `aria-live="assertive"`, mounted once and never re-announced.
 - The banner never contains the digits that triggered it. Screen readers must not hear them
   either.
-- Contrast: white on `scam.base` is 5.9:1.
+- Contrast: white on `scam.base` is 6.5:1.
 
 ## Don't
 
