@@ -6,7 +6,7 @@
 
 **Demo video (2 min):** https://youtu.be/EvZi8-8Kvjc
 
-![A frame from the demo video. The demo console replays a recorded call, and the phone screen shows the full-screen alert "This sounds like a scam" with one line to say to end the call.](docs/img/scam-alert.png)
+![A clip from the demo video. The demo console replays a recorded call, and the phone screen shows the full-screen alert "This sounds like a scam" with one line to say to end the call.](docs/img/scam-alert.gif)
 
 ## At a glance
 
@@ -28,6 +28,14 @@
 - **What we added.** Our own user (an older person and a family member), our own data (the
   recorded calls and the held-out set) and our own question (can the model cheat on its
   test?).
+
+**Doesn't Google already do this?** On some phones. Google's Scam Detection runs inside its
+Phone app on Pixel phones
+([Google's help page](https://support.google.com/phoneapp/answer/15654065?hl=en)), with the
+Samsung Galaxy S26 series in the US announced in February 2026
+([Google's post](https://blog.google/security/strengthening-android-lead-in-scam-protection/)),
+and it warns the person on the call. Second Ear sits next to any phone on speaker and sends
+a push to a family member. Neither saves the call.
 
 To run it, see [Check it yourself in 5 minutes](#check-it-yourself-in-5-minutes). To find a
 file, see the [Repository map](#repository-map). The judging criteria are answered one by
@@ -216,6 +224,10 @@ every number above is from the frozen version (tag detection-freeze).
   [What To Know About Romance Scams](https://consumer.ftc.gov/articles/what-know-about-romance-scams).
 - **Call audio on phones:** [MITRE ATT&CK T1429, Audio Capture](https://attack.mitre.org/techniques/T1429/),
   and [The Register on the Google Play call-recording ban](https://www.theregister.com/2022/04/22/google_banning_thirdparty_callrecording_apps/).
+- **Google's Scam Detection:** Phone app Help,
+  ["Use Scam Detection"](https://support.google.com/phoneapp/answer/15654065?hl=en), and
+  Google's post
+  ["Staying One Step Ahead: Strengthening Android's Lead in Scam Protection"](https://blog.google/security/strengthening-android-lead-in-scam-protection/).
 - **AI tools:** [Claude Code](https://claude.com/claude-code) built most of the code, and we
   reviewed all of it. [Hermes Agent](https://hermes-agent.nousresearch.com/) by Nous
   Research, an open-source agent we used for parts of the build, running DeepSeek V4.1
