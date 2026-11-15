@@ -18,6 +18,7 @@ export const COPY = {
   en: {
     app_title: "Second Ear",
     status_ready: "Put the call on speaker next to this phone.",
+    privacy_note: "Second Ear never saves your calls.",
     status_starting: "Starting.",
     status_listening: "Listening.",
     status_stopped: "Stopped.",
@@ -127,6 +128,7 @@ function setScreen(name) {
     el(id).hidden = name !== "demo";
   });
   el("mic-note").hidden = name !== "ready" || micWasExplained();
+  el("privacy-note").hidden = name !== "ready";
 }
 
 function micWasExplained() {

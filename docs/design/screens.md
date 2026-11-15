@@ -10,6 +10,10 @@ What the person sees before anything is happening.
 - Title `Second Ear`, one line under it: `Put the call on speaker next to this phone.` The
   name is the quiet one (`label` size, muted); the line under it is the loud one (`body`
   size, 600 weight, ink), on every screen.
+- Under that line, on this screen only, the promise: `Second Ear never saves your calls.`
+  (`caption` size, muted). It is true of the code: the server writes no audio and no
+  transcript to disk or to a log, and a test in `tests/test_web_copy.py` fails if a module in
+  `server/` starts writing files.
 - RiskMeter at 0, word `Calm`.
 - Primary button `Start listening` (56 px, full width). Secondary text button `Demo mode`.
   The buttons sit at the bottom of the screen, under the thumb; `Stop` takes the same place.

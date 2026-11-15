@@ -159,6 +159,14 @@ blockquote {
   min-height: var(--leading-body);
 }
 
+/* The promise on the Ready screen: the caption style, muted. */
+.app__promise {
+  margin-top: var(--space-xs);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  color: var(--color-muted);
+}
+
 .note {
   font-size: var(--text-label);
   line-height: var(--leading-label);
