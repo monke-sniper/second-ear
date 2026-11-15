@@ -8,6 +8,53 @@
 
 ![A frame from the demo video. The demo console replays a recorded call, and the phone screen shows the full-screen alert "This sounds like a scam" with one line to say to end the call.](docs/img/scam-alert.png)
 
+## At a glance
+
+- **Who it is for.** An older person on a phone call, and the family member who gets a push
+  when that call looks like a scam.
+- **What goes in, what comes out.** In: the sound of a phone call played on speaker, heard
+  through the microphone of a second device and never saved. Out: a risk level on the
+  screen, a full-screen alert with one line to say to end the call, a separate warning when
+  a code or card number is read out, and one push to a family member.
+- **Against a keyword list.** On a held-out set of 100 calls, written by a different model
+  from the one that wrote the training data, the model's F1 is 0.8113 (n=100) and the
+  keyword list's is 0.4776 (n=100). The model catches 43 of the 50 scam calls and the list
+  catches 16. The model wrongly flags 13 of the 50 legitimate calls and the list flags 1.
+- **On recorded calls.** Of the 12 calls we recorded and ran through the whole system, 4 of
+  the 6 scam calls raised an alert, after a median of 22.5 s of audio (n=4), and 1 of the 6
+  legitimate calls raised one.
+- **Where it fails.** It flags real bank fraud-department calls as scams (8 of 8 in the
+  held-out set) and misses slow romance scams (1 of 5 caught).
+- **What we added.** Our own user (an older person and a family member), our own data (the
+  recorded calls and the held-out set) and our own question (can the model cheat on its
+  test?).
+
+## How this answers the judging criteria
+
+| Criterion | Evidence | Where to check |
+|---|---|---|
+| Technical quality | A fine-tuned DistilBERT classifier, fixed alert rules and a spoken-digit counter, each with tests. It is measured on a held-out set against a 7-phrase keyword list, and every metric is in one table with its n. Detection was frozen at a tag, and the recorded calls were scored once, after it. | [`eval/results/table.md`](eval/results/table.md), tag [`detection-freeze`](https://github.com/monke-sniper/second-ear/tree/detection-freeze), [`tests/`](tests/) |
+| Impact | Built for an older person on a live call and the family member who gets the push. On the recorded scam calls that raised an alert, the first alert came after a median of 22.5 s of audio (n=4). It raised an alert on 1 of the 6 legitimate recorded calls, and the 2 scam calls it missed are written up call by call. Whether an alert came before the money ask was not measured. | [Results](#results), [`eval/results/failures.md`](eval/results/failures.md) |
+| Creativity | We asked whether the model could cheat on its own test. Looked up among the training conversations, the first 6 words of a BothBosu test dialogue give the right label for 295 of 320 with no model. We retrained with the openings cut off, and the retrained model scores the same with the first 12 words of each test dialogue removed (`diagnostics.opening_removed`). We also recorded 12 calls of our own from one-line briefs. | [`eval/results/model.json`](eval/results/model.json), [`eval/calls/BRIEFS.md`](eval/calls/BRIEFS.md) |
+| Clarity | Every result is quoted from `eval/results/` with its n. The calls the system got wrong are listed with what was heard. The demo video shows the app on a recorded call. | [`eval/results/failures.md`](eval/results/failures.md), [demo video](https://youtu.be/EvZi8-8Kvjc) |
+
+The four questions from the brief, each answered in one sentence:
+
+- **Who is it for?** An older person on a live phone call, and the family member who gets
+  one push when that call looks like a scam ([The problem](#the-problem)).
+- **What goes in and out?** The sound of a call on speaker goes in, and a risk level, an
+  alert with one line to say, a code warning and one push to a family member come out
+  ([How it works](#how-it-works)).
+- **Does it beat a simple baseline?** On the held-out set, yes on F1 (0.8113 against
+  0.4776, both n=100) and recall (0.86 against 0.32, both n=50), and no on precision
+  (0.7679, n=56, against 0.9412, n=17) ([`eval/results/table.md`](eval/results/table.md)).
+- **Where does it fail?** It calls real bank fraud-department calls scams, and it missed 2
+  of the 6 recorded scam calls, a grandparent scam and a romance scam
+  ([`eval/results/failures.md`](eval/results/failures.md)).
+
+To run it, see [Check it yourself in 5 minutes](#check-it-yourself-in-5-minutes). To find a
+file, see the [Repository map](#repository-map).
+
 ## The problem
 
 Phone scams work because they happen live. The caller pretends to be a bank, a government
@@ -196,6 +243,32 @@ every number above is from the frozen version (tag detection-freeze).
 
 ---
 
+## Check it yourself in 5 minutes
+
+These steps need the one-time install from [Setup and run](#setup-and-run-windows) below,
+with the `.venv` activated. They need no API key, no model file and no recording, and none
+of them writes to `eval/results/`.
+
+1. **Run the tests.** `pytest -q`. On a fresh clone every test passes, in about 10 seconds
+   on our laptop. The tests use fakes for Whisper, the explainer and the push.
+2. **Ask what this machine can run.** `python -m server.preflight`. It should end with `OK`,
+   after warnings for what a fresh clone does not have: the trained scorer (a keyword
+   stand-in is used), `ANTHROPIC_API_KEY` (the explainer shows its fixed line) and
+   `NTFY_TOPIC` (pushes are off). The first run downloads Whisper `base.en`; add
+   `--skip-whisper` to leave that step out.
+3. **Watch an alert.** `uvicorn server.app:app --port 8000`, then open
+   `http://localhost:8000/?demo=1` and press Play. A fresh clone has no recordings, so the
+   console says `Text replay, no audio` and sends a short scripted scam call, as text,
+   through the same scoring and alert rules. It ends on the full-screen alert "This sounds
+   like a scam" and the warning not to read a number out.
+4. **Read the results.** [`eval/results/table.md`](eval/results/table.md) has every metric
+   with its n. [`eval/results/failures.md`](eval/results/failures.md) has the recorded
+   calls the system got wrong. The JSON files next to them hold the same numbers with the
+   counts behind them, and [`eval/README.md`](eval/README.md) says how each file was made.
+
+The commands that write results files are listed in `eval/README.md`. None of them is
+needed to check a number in this README.
+
 ## Setup and run (Windows)
 
 ```bash
@@ -226,17 +299,15 @@ held-out scoring, is in `eval/README.md`.
 `python scripts/smoke_explainer.py` and `python scripts/smoke_push.py` check the real
 explainer request and a real push once `.env` has the key and the topic.
 
-## Layout
+## Repository map
 
-```
-server/   FastAPI app, audio pipeline, alert rules, explainer, push
-web/      Phone UI, plain HTML/JS, no build step
-ml/       Colab notebooks: train the scorer, run baselines
-eval/     Held-out set, offline scoring of recorded calls, results
-tests/    test_* = plumbing, spec_* = behaviour specs
-scripts/  smoke checks you run by hand against the real explainer API and ntfy
-docs/     SPEC.md (frozen contract), design/ (UI tokens + component specs)
-```
+- [`server/`](server/): FastAPI app, audio pipeline, alert rules, explainer, push
+- [`web/`](web/): phone UI and demo console, plain HTML/JS, no build step
+- [`ml/`](ml/): Colab notebooks that train the scorer and run the keyword baseline
+- [`eval/`](eval/): held-out set, offline scoring of recorded calls, and `results/`
+- [`tests/`](tests/): `test_*` = plumbing, `spec_*` = behaviour specs
+- [`scripts/`](scripts/): smoke checks you run by hand against the real explainer API and ntfy
+- [`docs/`](docs/): `SPEC.md` (frozen contract), `design/` (UI tokens and component specs)
 
 ## Decisions that are already made
 
