@@ -14,8 +14,8 @@
   when that call looks like a scam.
 - **What goes in, what comes out.** In: the sound of a phone call played on speaker, heard
   through the microphone of a second device and never saved. Out: a risk level on the
-  screen, a full-screen alert with one line to say to end the call, a separate warning when
-  a code or card number is read out, and one push to a family member.
+  screen, a full-screen alert with one line to say to end the call, a code warning when a
+  code or card number is read out, and one push to a family member.
 - **Against a keyword list.** On a held-out set of 100 calls, written by a different model
   from the one that wrote the training data, the model's F1 is 0.8113 (n=100) and the
   keyword list's is 0.4776 (n=100). The model catches 43 of the 50 scam calls and the list
@@ -29,31 +29,9 @@
   recorded calls and the held-out set) and our own question (can the model cheat on its
   test?).
 
-## How this answers the judging criteria
-
-| Criterion | Evidence | Where to check |
-|---|---|---|
-| Technical quality | A fine-tuned DistilBERT classifier, fixed alert rules and a spoken-digit counter, each with tests. It is measured on a held-out set against a 7-phrase keyword list, and every metric is in one table with its n. Detection was frozen at a tag, and the recorded calls were scored once, after it. | [`eval/results/table.md`](eval/results/table.md), tag [`detection-freeze`](https://github.com/monke-sniper/second-ear/tree/detection-freeze), [`tests/`](tests/) |
-| Impact | Built for an older person on a live call and the family member who gets the push. On the recorded scam calls that raised an alert, the first alert came after a median of 22.5 s of audio (n=4). It raised an alert on 1 of the 6 legitimate recorded calls, and the 2 scam calls it missed are written up call by call. Whether an alert came before the money ask was not measured. | [Results](#results), [`eval/results/failures.md`](eval/results/failures.md) |
-| Creativity | We asked whether the model could cheat on its own test. Looked up among the training conversations, the first 6 words of a BothBosu test dialogue give the right label for 295 of 320 with no model. We retrained with the openings cut off, and the retrained model scores the same with the first 12 words of each test dialogue removed (`diagnostics.opening_removed`). We also recorded 12 calls of our own from one-line briefs. | [`eval/results/model.json`](eval/results/model.json), [`eval/calls/BRIEFS.md`](eval/calls/BRIEFS.md) |
-| Clarity | Every result is quoted from `eval/results/` with its n. The calls the system got wrong are listed with what was heard. The demo video shows the app on a recorded call. | [`eval/results/failures.md`](eval/results/failures.md), [demo video](https://youtu.be/EvZi8-8Kvjc) |
-
-The four questions from the brief, each answered in one sentence:
-
-- **Who is it for?** An older person on a live phone call, and the family member who gets
-  one push when that call looks like a scam ([The problem](#the-problem)).
-- **What goes in and out?** The sound of a call on speaker goes in, and a risk level, an
-  alert with one line to say, a code warning and one push to a family member come out
-  ([How it works](#how-it-works)).
-- **Does it beat a simple baseline?** On the held-out set, yes on F1 (0.8113 against
-  0.4776, both n=100) and recall (0.86 against 0.32, both n=50), and no on precision
-  (0.7679, n=56, against 0.9412, n=17) ([`eval/results/table.md`](eval/results/table.md)).
-- **Where does it fail?** It calls real bank fraud-department calls scams, and it missed 2
-  of the 6 recorded scam calls, a grandparent scam and a romance scam
-  ([`eval/results/failures.md`](eval/results/failures.md)).
-
 To run it, see [Check it yourself in 5 minutes](#check-it-yourself-in-5-minutes). To find a
-file, see the [Repository map](#repository-map).
+file, see the [Repository map](#repository-map). The judging criteria are answered one by
+one [after the Sources](#how-this-answers-the-judging-criteria).
 
 ## The problem
 
@@ -116,7 +94,7 @@ some real calls; the Results section says which.
    the latest stretch of the transcript.
 4. Fixed rules turn scores into alerts. A caution needs the smoothed score to pass a line.
    A scam alert needs two high chunks in a row, so that one word or one misheard chunk
-   cannot set it off. A digit warning fires when a run of digits is read out during a
+   cannot set it off. A code warning fires when a run of digits is read out during a
    risky call.
 5. On an alert, Claude Haiku names the kind of scam and writes the line to say. It cannot
    raise, lower or cancel an alert, and if it is slow or its answer breaks a rule the app
@@ -172,8 +150,8 @@ number as the real one.
 | Scam calls that raised an alert | 0.6667 (4 caught, 2 missed) | 6 |
 | Legitimate calls that raised an alert | 0.1667 (1 call) | 6 |
 | Median seconds of audio before the first alert | 22.5 | 4 |
-| Scam calls where the digit warning fired | 0.5 | 6 |
-| Legitimate calls where the digit warning fired | 0.0 | 6 |
+| Scam calls where the code warning fired | 0.5 | 6 |
+| Legitimate calls where the code warning fired | 0.0 | 6 |
 | Alert before the money ask | not measured; we did not mark when the ask came | 0 |
 
 ![Line chart of the risk score during two recorded calls. The prize scam call stays close to zero at first, then jumps above the scam line and stays there; the scam alert is marked at 26.75 s and the code warning at 44.5 s. The legitimate pharmacy call stays close to zero from start to end. Dashed lines mark the caution line at 0.5 and the scam line at 0.85.](docs/img/risk-timeline.png)
@@ -182,6 +160,9 @@ The chart shows the risk score, chunk by chunk, for two of the recorded calls: t
 scam (call 12) raises the scam alert at 26.75 s, once two chunks in a row have scored above
 0.85, and the code warning at 44.5 s, and the legitimate pharmacy call (call 01) never
 scores above 0.0003.
+
+[`eval/plot_risk_timeline.py`](eval/plot_risk_timeline.py) draws it, from
+`eval/results/calls.json` and nothing else.
 
 **Where it fails.**
 
@@ -248,6 +229,29 @@ every number above is from the frozen version (tag detection-freeze).
   and ["How long do you store my organization's data?"](https://privacy.claude.com/en/articles/7996866-how-long-do-you-store-my-organization-s-data);
   Claude docs, [API and data retention](https://platform.claude.com/docs/en/manage-claude/api-and-data-retention).
 
+## How this answers the judging criteria
+
+| Criterion | Evidence | Where to check |
+|---|---|---|
+| Technical quality | A fine-tuned DistilBERT classifier, fixed alert rules and a spoken-digit counter, each with tests. It is measured on a held-out set against a 7-phrase keyword list, and every metric is in one table with its n. Detection was frozen at a tag, and the recorded calls were scored once, after it. | [`eval/results/table.md`](eval/results/table.md), tag [`detection-freeze`](https://github.com/monke-sniper/second-ear/tree/detection-freeze), [`tests/`](tests/) |
+| Impact | Built for an older person on a live call and the family member who gets the push. On the recorded scam calls that raised an alert, the first alert came after a median of 22.5 s of audio (n=4). It raised an alert on 1 of the 6 legitimate recorded calls, and the 2 scam calls it missed are written up call by call. Whether an alert came before the money ask was not measured. | [Results](#results), [`eval/results/failures.md`](eval/results/failures.md) |
+| Creativity | We asked whether the model could cheat on its own test. Looked up among the training conversations, the first 6 words of a BothBosu test dialogue give the right label for 295 of 320 with no model. We retrained with the openings cut off, and the retrained model scores the same with the first 12 words of each test dialogue removed (`diagnostics.opening_removed`). We also recorded 12 calls of our own from one-line briefs. | [`eval/results/model.json`](eval/results/model.json), [`eval/calls/BRIEFS.md`](eval/calls/BRIEFS.md) |
+| Clarity | Every result is quoted from `eval/results/` with its n. The calls the system got wrong are listed with what was heard. The demo video shows the app on a recorded call. | [`eval/results/failures.md`](eval/results/failures.md), [demo video](https://youtu.be/EvZi8-8Kvjc) |
+
+The four questions from the brief, each answered in one sentence:
+
+- **Who is it for?** An older person on a live phone call, and the family member who gets
+  one push when that call looks like a scam ([The problem](#the-problem)).
+- **What goes in and out?** The sound of a call on speaker goes in, and a risk level, an
+  alert with one line to say, a code warning and one push to a family member come out
+  ([How it works](#how-it-works)).
+- **Does it beat a simple baseline?** On the held-out set, yes on F1 (0.8113 against
+  0.4776, both n=100) and recall (0.86 against 0.32, both n=50), and no on precision
+  (0.7679, n=56, against 0.9412, n=17) ([`eval/results/table.md`](eval/results/table.md)).
+- **Where does it fail?** It calls real bank fraud-department calls scams, and it missed 2
+  of the 6 recorded scam calls, a grandparent scam and a romance scam
+  ([`eval/results/failures.md`](eval/results/failures.md)).
+
 ---
 
 ## Check it yourself in 5 minutes
@@ -267,7 +271,7 @@ of them writes to `eval/results/`.
    `http://localhost:8000/?demo=1` and press Play. A fresh clone has no recordings, so the
    console says `Text replay, no audio` and sends a short scripted scam call, as text,
    through the same scoring and alert rules. It ends on the full-screen alert "This sounds
-   like a scam" and the warning not to read a number out.
+   like a scam" and the code warning, "Do not read that number out".
 4. **Read the results.** [`eval/results/table.md`](eval/results/table.md) has every metric
    with its n. [`eval/results/failures.md`](eval/results/failures.md) has the recorded
    calls the system got wrong. The JSON files next to them hold the same numbers with the
@@ -291,10 +295,11 @@ python -m server.preflight
 
 Preflight then prints `PASS  scorer folder` with the path, where it warned about the
 stand-in before. Start the server again and it scores with DistilBERT; the text replay in
-step 3 still ends on the same alert and warning. The sha256 of `model.safetensors` in the
-zip is the one recorded in `eval/results/model.json` (`export.model_safetensors_sha256`).
-Licence basis: the base model, `distilbert-base-uncased`, and the training data,
-BothBosu/scam-dialogue, are both Apache-2.0.
+step 3 still ends on the same alert and code warning. The sha256 of `model.safetensors` in
+the zip is the one recorded in `eval/results/model.json`
+(`export.model_safetensors_sha256`). Licence basis: the base model,
+`distilbert-base-uncased`, and the training data, BothBosu/scam-dialogue, are both
+Apache-2.0.
 
 ## Setup and run (Windows)
 
