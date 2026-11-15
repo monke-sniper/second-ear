@@ -136,7 +136,11 @@ every number above is from the frozen version (tag detection-freeze).
   caution. We will not tune it on these 12 calls; it needs new recordings.
 - Record more calls and mark the second of the money ask, so that "alerted before the ask"
   has an n above 0.
-- Run it on the phone itself instead of a laptop next to the phone.
+- Run it on the phone itself. This is harder than it sounds: Android only lets apps that
+  come with the phone (such as Google's own Phone app) hear call audio, Google Play bans
+  using the Accessibility API to get around that, and iPhones don't let any third-party
+  app hear a call. So a phone version would have to be built into the dialer with a phone
+  maker, which is why Second Ear listens on speaker from a second device.
 
 ## Sources
 
@@ -150,6 +154,8 @@ every number above is from the frozen version (tag detection-freeze).
 - **Advice on phone scams:** the FTC's [Phone Scams](https://consumer.ftc.gov/articles/phone-scams),
   [How To Avoid a Scam](https://consumer.ftc.gov/articles/how-avoid-scam) and
   [What To Know About Romance Scams](https://consumer.ftc.gov/articles/what-know-about-romance-scams).
+- **Call audio on phones:** [MITRE ATT&CK T1429, Audio Capture](https://attack.mitre.org/techniques/T1429/),
+  and [The Register on the Google Play call-recording ban](https://www.theregister.com/2022/04/22/google_banning_thirdparty_callrecording_apps/).
 - **AI tools:** [Claude Code](https://claude.com/claude-code) built most of the code, and we
   reviewed all of it. [Claude Haiku](https://www.anthropic.com/claude) is the explainer
   inside the app; it can run on Gemini instead (`EXPLAINER_PROVIDER=gemini`). Gemini,
