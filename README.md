@@ -4,6 +4,10 @@
 
 **Team:** Ayyan Zeeshan, Sarim Waseem
 
+**Demo video (2 min):** https://youtu.be/EvZi8-8Kvjc
+
+![A frame from the demo video. The demo console replays a recorded call, and the phone screen shows the full-screen alert "This sounds like a scam" with one line to say to end the call.](docs/img/scam-alert.png)
+
 ## The problem
 
 Phone scams work because they happen live. The caller pretends to be a bank, a government
