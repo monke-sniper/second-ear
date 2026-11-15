@@ -167,6 +167,7 @@ every number above is from the frozen version (tag detection-freeze).
   [Claude Haiku](https://www.anthropic.com/claude) is the explainer inside the app; it can
   run on Gemini instead (`EXPLAINER_PROVIDER=gemini`). Gemini, through the
   [Gemini API](https://ai.google.dev/), wrote the held-out test set.
+  [ElevenLabs](https://elevenlabs.io/) is the AI voice for the demo video.
 
 ---
 
