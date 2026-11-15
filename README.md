@@ -176,6 +176,13 @@ number as the real one.
 | Legitimate calls where the digit warning fired | 0.0 | 6 |
 | Alert before the money ask | not measured; we did not mark when the ask came | 0 |
 
+![Line chart of the risk score during two recorded calls. The prize scam call stays close to zero at first, then jumps above the scam line and stays there; the scam alert is marked at 26.75 s and the code warning at 44.5 s. The legitimate pharmacy call stays close to zero from start to end. Dashed lines mark the caution line at 0.5 and the scam line at 0.85.](docs/img/risk-timeline.png)
+
+The chart shows the risk score, chunk by chunk, for two of the recorded calls: the prize
+scam (call 12) raises the scam alert at 26.75 s, once two chunks in a row have scored above
+0.85, and the code warning at 44.5 s, and the legitimate pharmacy call (call 01) never
+scores above 0.0003.
+
 **Where it fails.**
 
 - **Real bank fraud calls.** The model flagged all 8 real fraud-department calls in the
@@ -269,6 +276,26 @@ of them writes to `eval/results/`.
 The commands that write results files are listed in `eval/README.md`. None of them is
 needed to check a number in this README.
 
+**With the trained model (optional).** The steps above run on the keyword stand-in. The
+scorer we trained is attached to the
+[v1.0-submission release](https://github.com/monke-sniper/second-ear/releases/tag/v1.0-submission)
+as `risk-scorer.zip` (247 MB). These three commands download it, unzip it into
+`models/risk-scorer/` and check that it is found (in Windows PowerShell, type `curl.exe`
+for `curl`):
+
+```bash
+curl -L -o risk-scorer.zip https://github.com/monke-sniper/second-ear/releases/download/v1.0-submission/risk-scorer.zip
+python -m zipfile -e risk-scorer.zip models/risk-scorer
+python -m server.preflight
+```
+
+Preflight then prints `PASS  scorer folder` with the path, where it warned about the
+stand-in before. Start the server again and it scores with DistilBERT; the text replay in
+step 3 still ends on the same alert and warning. The sha256 of `model.safetensors` in the
+zip is the one recorded in `eval/results/model.json` (`export.model_safetensors_sha256`).
+Licence basis: the base model, `distilbert-base-uncased`, and the training data,
+BothBosu/scam-dialogue, are both Apache-2.0.
+
 ## Setup and run (Windows)
 
 ```bash
@@ -291,9 +318,11 @@ the synthetic-voice `tts_scam.wav` if there is no recording, or a scripted text 
 there is neither. A fresh clone has no recordings (audio is never committed), so there the
 demo console runs the text replay, labelled `Text replay, no audio`.
 
-The trained scorer is not in the repo. Train it with `ml/train_risk_model.ipynb` in Colab
-and unzip `risk-scorer.zip` into `models/`. Without it the app runs on a keyword stand-in,
-and `python -m server.preflight` says so. How the results were made, and how to re-run the
+The trained scorer is not in the repo. Download it from the release (the three commands
+are at the end of [Check it yourself](#check-it-yourself-in-5-minutes)), or train it again
+with `ml/train_risk_model.ipynb` in Colab and unzip `risk-scorer.zip` into
+`models/risk-scorer/`. Without it the app runs on a keyword stand-in, and
+`python -m server.preflight` says so. How the results were made, and how to re-run the
 held-out scoring, is in `eval/README.md`.
 
 `python scripts/smoke_explainer.py` and `python scripts/smoke_push.py` check the real
@@ -330,6 +359,7 @@ Full list in `docs/SPEC.md`. The ones that shape everything:
 
 ## Not in the repo, by design
 
-- Model weights (`models/`), audio recordings (`eval/calls/*.wav`), `.env`.
+- Model weights (`models/`; the trained scorer is attached to the release instead), audio
+  recordings (`eval/calls/*.wav`), `.env`.
 - Call-back phone numbers. `server/orgs.json` has names and aliases but `phone: null` for
   every entry, because none has been checked on the organisation's own site yet.
