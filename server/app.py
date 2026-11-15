@@ -12,8 +12,9 @@ import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator, Callable
+from urllib.parse import urlsplit
 
-from fastapi import FastAPI, HTTPException, WebSocket
+from fastapi import FastAPI, HTTPException, WebSocket, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -28,6 +29,26 @@ from server.scorer import RiskScorer, load_app_scorer
 from server.stt import load_transcriber
 
 log = logging.getLogger("second_ear.app")
+
+# The only pages that may open the audio socket: the app, served from this machine.
+LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1"})
+
+
+def origin_allowed(origin: str | None) -> bool:
+    """True when a socket handshake may go ahead.
+
+    A browser always sends Origin with a WebSocket handshake and a page cannot change
+    it, so any page on another site is refused here: it could otherwise open a socket
+    to localhost, feed it audio and set off a push. A client that sends no Origin is
+    not a browser (the tests, a script on this machine) and is let in.
+    """
+    if origin is None:
+        return True
+    try:
+        host = urlsplit(origin).hostname
+    except ValueError:
+        return False
+    return host in LOCAL_HOSTS
 
 
 def warm_up(services: Services) -> None:
@@ -83,7 +104,12 @@ def create_app(
     async def audio_socket(ws: WebSocket) -> None:
         """Bytes in, events out. The ack per frame stays: it is the cheapest proof that
         the socket and the browser's mic path work, and the first thing to check when
-        a demo goes quiet."""
+        a demo goes quiet. A page from another site is refused before the handshake
+        completes (docs/SPEC.md §3)."""
+        if not origin_allowed(ws.headers.get("origin")):
+            log.warning("audio socket refused: the page is not served from this machine")
+            await ws.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
         await ws.accept()
         await LiveCall(ws, services).run()
 

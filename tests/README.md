@@ -5,7 +5,7 @@ Two kinds, deliberately split.
 | File | What it is | Expected state |
 |---|---|---|
 | `test_health.py` | `/health`, the app shell, static assets | green |
-| `test_ws_protocol.py` | bytes in, counted acks out, unknown events error | green |
+| `test_ws_protocol.py` | bytes in, counted acks out, unknown events error, a page from another site refused | green |
 | `test_contracts_import.py` | frame size, frozen thresholds, wire strictness, honest org table | green |
 | `spec_alerts.py` | the alert rules from SPEC §2 and §4 | green since Phase 4 |
 | `spec_danger.py` | digit counting, the risk gate, the pharmacy case | green since Phase 4 |

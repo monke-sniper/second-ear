@@ -6,6 +6,7 @@ runner, so these read `web/` as text. They check wording, never layout.
 
 from __future__ import annotations
 
+import json
 import re
 
 from server.config import ROOT, WEB_DIR
@@ -13,6 +14,9 @@ from server.explainer import GENERIC_SAFE_EXIT
 
 APP_JS = (WEB_DIR / "app.js").read_text(encoding="utf-8")
 INDEX_HTML = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+STYLES_CSS = (WEB_DIR / "styles.css").read_text(encoding="utf-8")
+TOKENS = json.loads((ROOT / "docs" / "design" / "tokens.json").read_text(encoding="utf-8"))
+BODY_TEXT_MIN_PX = 18  # tokens.json: "Body text never below 18px"
 PROMISE = "Second Ear never saves your calls."
 # Ways a Python module puts something on disk. None may appear in server/.
 FILE_WRITES = re.compile(
@@ -86,6 +90,17 @@ def test_the_promise_sits_under_the_status_line_and_shows_on_the_ready_screen_on
     assert 'id="privacy-note" data-copy="privacy_note" hidden' in header
     assert f'privacy_note: "{PROMISE}"' in APP_JS
     assert 'el("privacy-note").hidden = name !== "ready";' in APP_JS
+
+
+def test_the_promise_is_no_smaller_than_the_smallest_body_text_the_tokens_allow():
+    assert f"Body text never below {BODY_TEXT_MIN_PX}px" in TOKENS["meta"]["constraints"]
+    rule = STYLES_CSS.split(".app__promise {", 1)[1].split("}", 1)[0]
+    used = re.search(r"font-size: var\(--text-([a-z]+)\);", rule)
+    assert used is not None, "the promise should take its size from a token"
+    size = TOKENS["type"]["scale"][used.group(1)]["size"]
+    assert size >= BODY_TEXT_MIN_PX
+    # The stylesheet's copy of that token is the same number.
+    assert f"--text-{used.group(1)}: {size}px;" in STYLES_CSS
 
 
 def test_the_promise_is_kept_no_server_module_writes_a_file():

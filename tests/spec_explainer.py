@@ -10,6 +10,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import logging
+import re
 import time
 from types import SimpleNamespace
 
@@ -17,7 +18,8 @@ import pytest
 
 from server.config import get_settings
 from server.explainer import GENERIC_SAFE_EXIT, Explainer, Org
-from server.explainer_prompt import redact_for_prompt
+from server.explainer_prompt import redact_for_prompt, redact_outbound
+from server.numbers import find_number_runs
 from tests.helpers import chunk
 
 VALID = json.dumps(
@@ -187,10 +189,90 @@ def test_digits_read_one_at_a_time_between_words_are_redacted_too():
     assert leaked is False
 
 
-def test_a_lone_one_is_not_redacted():
+SLOW_PIN = "my pin is 4, then 9, then 1, then 7"
+NUMBER_WORDS = (
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen "
+    "fourteen fifteen sixteen seventeen eighteen nineteen twenty thirty forty fifty "
+    "sixty seventy eighty ninety"
+).split()
+
+
+def holds_a_number(text: str) -> bool:
+    words = re.findall(r"[a-z]+", text.lower().replace("[number]", " "))
+    return any(char.isdigit() for char in text) or any(word in NUMBER_WORDS for word in words)
+
+
+def test_a_pin_read_one_digit_at_a_time_leaves_no_digit_in_the_prompt():
+    # Four lone digits with a word between each: under the old 2+ rule all four stayed.
+    out = redact_for_prompt(SLOW_PIN)
+    assert out == "my pin is [number], then [number], then [number], then [number]"
+    assert holds_a_number(out) is False
+
+
+def test_the_same_pin_spoken_leaves_no_number_word_in_the_prompt():
+    out = redact_for_prompt("my pin is four, then nine, then one, then seven")
+    assert out == "my pin is [number], then [number], then [number], then [number]"
+    assert holds_a_number(out) is False
+
+
+@pytest.mark.parametrize("word", NUMBER_WORDS)
+def test_every_number_word_is_replaced_on_its_own(word):
+    assert redact_for_prompt(f"she said {word} to him") == "she said [number] to him"
+
+
+def test_the_slow_pin_never_reaches_the_request():
+    fake = FakeAnthropic()
+    make_explainer(fake).explain([chunk(SLOW_PIN, 4.0)], 0.9)
+    asked = fake.calls[0]["messages"][0]["content"]
+    said = asked.split("<transcript>", 1)[1].split("</transcript>", 1)[0].strip()
+    assert said == "my pin is [number], then [number], then [number], then [number]"
+
+
+@pytest.mark.parametrize(
+    ("heard", "sent"),
+    [
+        # An "oh" at the edge of a number is a zero, even across a comma or a full stop.
+        pytest.param("Four. Nine. One. Oh.", "[number].", id="oh-after-a-full-stop"),
+        pytest.param("It is oh, seven, three, four", "It is [number]", id="oh-before-a-comma"),
+        pytest.param("double oh, seven", "[number]", id="double-oh-before-a-comma"),
+        # Plurals say which digit as plainly as the digit does.
+        pytest.param(
+            "two sevens and two nines",
+            "[number] [number] and [number] [number]",
+            id="plurals",
+        ),
+        pytest.param("nought point five", "[number] point [number]", id="nought"),
+        # Digit characters that are not 0-9.
+        pytest.param("x² and ①", "x[number] and [number]", id="other-digit-characters"),
+    ],
+)
+def test_what_the_digit_counter_leaves_alone_is_still_replaced_in_the_prompt(heard, sent):
+    out = redact_for_prompt(heard)
+    assert out == sent
+    assert holds_a_number(out) is False
+
+
+def test_an_oh_with_no_number_in_its_run_stays_in_the_prompt():
+    # The limit docs/SPEC.md §5 writes down: it cannot be told from the exclamation.
+    assert redact_for_prompt("oh, really") == "oh, really"
+    assert redact_for_prompt("four, then oh, then nine") == "[number], then oh, then [number]"
+
+
+def test_the_stricter_prompt_rule_does_not_change_what_the_screen_or_the_counter_sees():
+    # Detection and the wire keep the old reading of an "oh" beside a comma.
+    heard = "I counted four. Oh, I forgot the two sevens."
+    assert redact_outbound(heard) == heard
+    assert [run.digit_count for run in find_number_runs(heard)] == [1, 1]
+    assert redact_for_prompt(heard) == "I counted [number], I forgot the [number] [number]."
+
+
+def test_a_lone_one_is_replaced_in_the_prompt_too():
+    # The screen keeps "this one" (docs/SPEC.md §3). The prompt does not: every number goes.
     fake = FakeAnthropic()
     make_explainer(fake).explain([chunk("I will take this one, thank you", 4.0)], 0.9)
-    assert "this one" in sent_text(fake)
+    sent = sent_text(fake)
+    assert "this [number], thank you" in sent
+    assert "this one" not in sent
 
 
 def test_only_the_last_minute_is_sent():

@@ -27,6 +27,7 @@ export const COPY = {
     status_no_mic: "No microphone was found.",
     status_insecure: "The microphone only works on localhost or https.",
     status_lost: "The connection dropped. Press Start listening to try again.",
+    status_mic_stopped: "The microphone stopped.",
     status_audio_error: "Some audio could not be read. Still listening.",
     mic_note: "The browser will ask to use the microphone. Choose Allow.",
     start: "Start listening",
@@ -74,6 +75,7 @@ const MIC_ERRORS = {
   SecurityError: "status_mic_blocked",
   NotFoundError: "status_no_mic",
   OverconstrainedError: "status_no_mic",
+  MicEndedError: "status_mic_stopped",
 };
 
 const el = (id) => document.getElementById(id);
@@ -156,7 +158,7 @@ async function onStart() {
   view.resetView();
   view.setStatus("status_starting");
   try {
-    await startMicCall({ onEvent: handleServerEvent, onClose: onLost });
+    await startMicCall({ onEvent: handleServerEvent, onClose: onLost, onMicEnded });
     rememberMicExplained();
     setScreen("listening");
     view.setStatus("status_listening");
@@ -167,12 +169,17 @@ async function onStart() {
   el("start").disabled = false;
 }
 
-/** The call is over, by Stop or by a dropped connection: nothing it said stays on screen. */
+/** The call is over, by Stop, a dropped connection or a mic that stopped: nothing it said
+ *  stays on screen, and no alert sheet is left covering the Start button. */
 function endCall(statusKey) {
   stopCall(); // unhooks the socket first, so no late line can be drawn after the clear
+  const sheetWasOpen = view.closeAlert(); // the page behind an open sheet is inert
   view.clearTranscript();
   setScreen("ready");
   view.setStatus(statusKey);
+  if (sheetWasOpen) {
+    el("start").focus(); // focus was inside the sheet, which is gone
+  }
 }
 
 function onStop() {
@@ -181,6 +188,11 @@ function onStop() {
 
 function onLost() {
   endCall("status_lost");
+}
+
+/** The mic was unplugged or taken away mid-call: say so, do not go on "listening". */
+function onMicEnded() {
+  endCall("status_mic_stopped");
 }
 
 function boot() {

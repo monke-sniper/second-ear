@@ -2,7 +2,8 @@
 
 Checks Python, torch, CTranslate2 (CUDA), a one-second Whisper transcription, the
 scorer folder, and the env keys. Prints PASS/WARN/FAIL per line and exits 1 only
-when the Whisper path — the one thing a live demo cannot lose — fails.
+when the Whisper path — the one thing a live demo cannot lose — fails. No CUDA device
+is a WARN: Whisper on cpu/int8 is the documented normal path.
 It downloads a Whisper model only when the configured one is not cached yet.
 """
 
@@ -51,6 +52,7 @@ def check_torch() -> bool:
 
 
 def check_ctranslate2() -> bool:
+    """CTranslate2 has to import. A CUDA device is welcome and not required."""
     try:
         import ctranslate2 as ct2
     except Exception as exc:  # noqa: BLE001
@@ -67,11 +69,11 @@ def check_ctranslate2() -> bool:
     if devices > 0:
         _pass(f"ctranslate2 {ct2.__version__}: {devices} CUDA device(s), cuda compute types {types}")
         return True
-    _fail(
+    _warn(
         f"ctranslate2 {ct2.__version__}: no CUDA device visible. "
-        "Whisper will fall back to CPU; fix before the demo if it matters."
+        "Whisper runs on cpu/int8, which is the normal path."
     )
-    return False
+    return True
 
 
 def check_whisper(settings: "Settings") -> bool:

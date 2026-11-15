@@ -59,8 +59,8 @@ some real calls; the Results section says which.
 
 1. The browser sends raw microphone audio over a WebSocket to a FastAPI server on the same
    laptop.
-2. The server cuts the audio at pauses, and faster-whisper (`base.en`) turns each chunk
-   into text.
+2. The server cuts the audio at pauses, or at the 6 s limit when no pause comes, and
+   faster-whisper (`base.en`) turns each chunk into text.
 3. A DistilBERT classifier, fine-tuned from `distilbert-base-uncased` on BothBosu, scores
    the latest stretch of the transcript.
 4. Fixed rules turn scores into alerts. A caution needs the smoothed score to pass a line.
@@ -74,8 +74,10 @@ some real calls; the Results section says which.
 **Privacy.** The app never stores audio; each chunk is transcribed in memory and dropped.
 Digits never leave the call: spoken numbers are counted and replaced before any text
 reaches the screen, a log, the push or the explainer. The explainer gets the last minute of
-the transcript as text, with every number replaced. Everyone on the recorded calls agreed
-to be recorded, and the recordings stay out of the repo.
+the transcript as text, with every number replaced: every written digit and every spoken
+number, a single "one" or "4" included. (Words of size and order, such as "thousand" and
+"fourth", stay; `docs/SPEC.md` §5 lists what is left.) Everyone on the recorded calls
+agreed to be recorded, and the recordings stay out of the repo.
 
 ## Results
 
@@ -126,6 +128,9 @@ number as the real one.
   the rest stayed at 0.0351 or less. A scam alert needs two high chunks in a row, and this
   call never had two. That rule keeps one word from setting off an alert; here it cost us
   a real scam.
+- **Speech-to-text.** The romance and grandparent misses are partly speech-to-text errors:
+  `base.en` mishears words on phone-speaker audio, and the model only scores the words it
+  is given (see the snippets in [`eval/results/failures.md`](eval/results/failures.md)).
 
 After the freeze we added a guard against Whisper hallucinations found in manual testing;
 every number above is from the frozen version (tag detection-freeze).
@@ -163,7 +168,8 @@ every number above is from the frozen version (tag detection-freeze).
   and [The Register on the Google Play call-recording ban](https://www.theregister.com/2022/04/22/google_banning_thirdparty_callrecording_apps/).
 - **AI tools:** [Claude Code](https://claude.com/claude-code) built most of the code, and we
   reviewed all of it. [Hermes Agent](https://hermes-agent.nousresearch.com/) by Nous
-  Research, an open-source agent we used for parts of the build, running \<MODEL NAME\>.
+  Research, an open-source agent we used for parts of the build, running DeepSeek V4.1
+  Flash ([DeepSeek](https://www.deepseek.com/)).
   [Claude Haiku](https://www.anthropic.com/claude) is the explainer inside the app; it can
   run on Gemini instead (`EXPLAINER_PROVIDER=gemini`). Gemini, through the
   [Gemini API](https://ai.google.dev/), wrote the held-out test set.
@@ -190,7 +196,8 @@ Open `http://localhost:8000/` for the app, `http://localhost:8000/health` for th
 check. The mic only works on localhost or https. `http://localhost:8000/?demo=1` is the demo
 console: it replays `eval/calls/demo_scam.wav` through the same socket with the mic off, or
 the synthetic-voice `tts_scam.wav` if there is no recording, or a scripted text replay if
-there is neither.
+there is neither. A fresh clone has no recordings (audio is never committed), so there the
+demo console runs the text replay, labelled `Text replay, no audio`.
 
 The trained scorer is not in the repo. Train it with `ml/train_risk_model.ipynb` in Colab
 and unzip `risk-scorer.zip` into `models/`. Without it the app runs on a keyword stand-in,
@@ -218,7 +225,8 @@ Full list in `docs/SPEC.md`. The ones that shape everything:
 
 - Audio is raw 16 kHz mono s16le PCM in 250 ms frames. Never MediaRecorder webm chunks —
   only the first chunk has a header, the rest fail to decode.
-- Chunks are cut at pauses into 2–6 s pieces, never on a fixed grid, so words stay whole.
+- Chunks are 2–6 s long, never on a fixed grid: cut at a pause, or at the 6 s limit when
+  no pause comes. A cut at a pause keeps words whole; a cut at the limit can split one.
 - Whisper is `base.en` via CTranslate2, on CUDA when its libraries are installed and on the
   CPU otherwise. The recorded-call run used the CPU.
 - Risk 0..1 from DistilBERT over the last 256 tokens, left-truncated to match live input.

@@ -102,16 +102,29 @@ async function openCall(handlers) {
   return live;
 }
 
-/** Ask for the mic, then stream it. Rejects if the mic is refused or the socket fails. */
+/**
+ * Ask for the mic, then stream it. Rejects if the mic is refused or the socket fails.
+ * `handlers.onMicEnded` fires if the mic stops on its own mid-call: unplugged, or taken
+ * away by the browser or the system. Stopping the call here does not fire it.
+ */
 export async function startMicCall(handlers) {
   const stream = await navigator.mediaDevices.getUserMedia(MIC);
+  const tracks = stream.getAudioTracks();
   try {
     const call = await openCall(handlers);
+    if (tracks.some((track) => track.readyState === "ended")) {
+      // It stopped while the socket was opening, before anyone was listening for it.
+      throw Object.assign(new Error("the microphone stopped"), { name: "MicEndedError" });
+    }
     const source = call.context.createMediaStreamSource(stream);
     source.connect(call.tap); // to the worklet only: the mic is never played back
+    tracks.forEach((track) => {
+      track.onended = () => handlers.onMicEnded();
+    });
     live = { ...call, stream, source };
   } catch (error) {
     stream.getTracks().forEach((track) => track.stop());
+    stopCall(); // closes the socket and the context if they had already opened
     throw error;
   }
 }
@@ -156,7 +169,10 @@ export function stopCall() {
     source.disconnect();
   }
   if (stream !== null) {
-    stream.getTracks().forEach((track) => track.stop());
+    stream.getTracks().forEach((track) => {
+      track.onended = null;
+      track.stop();
+    });
   }
   socket.onclose = null;
   socket.onmessage = null;

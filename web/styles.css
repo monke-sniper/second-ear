@@ -159,11 +159,12 @@ blockquote {
   min-height: var(--leading-body);
 }
 
-/* The promise on the Ready screen: the caption style, muted. */
+/* The promise on the Ready screen: the label size, muted. 18 px is the smallest body
+   text tokens.json allows, and this line is a sentence to read, not a caption. */
 .app__promise {
   margin-top: var(--space-xs);
-  font-size: var(--text-caption);
-  line-height: var(--leading-caption);
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
   color: var(--color-muted);
 }
 

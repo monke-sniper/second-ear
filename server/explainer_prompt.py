@@ -1,7 +1,8 @@
 """Builds the two messages Haiku sees, and holds the redaction rule everything shares.
 
 In: the transcript chunks, the allowed scam types, and the organisation names.
-Out: a system prompt and a user message holding no number of two or more digits. Also
+Out: a system prompt, and a user message whose transcript holds no digit and no number
+word. Also
 `redact_outbound`, the one redaction a transcript event and a push both go through.
 It does not call the model, check replies, or log anything.
 """
@@ -12,14 +13,22 @@ import re
 from typing import Mapping, Sequence
 
 from server.contracts import TranscriptChunk
-from server.numbers import DIGIT_RUN, find_number_runs, replace_number_runs
+from server.numbers import replace_number_runs
 
 REDACTED = "[number]"
-# What docs/SPEC.md counts as a number: two or more digits. A lone "one" or "5" is
-# ordinary speech. This is the only copy of that threshold: the prompt, the reply check,
-# the wire, the pushes and the danger counter all import it from here.
+# What docs/SPEC.md counts as a number on the screen and in a push: two or more digits.
+# A lone "one" or "5" is ordinary speech there. This is the only copy of that threshold:
+# the reply check, the wire, the pushes and the danger counter all import it from here.
 NUMBER_MIN_DIGITS = 2
+# The prompt is stricter: there a single digit is a number too.
+PROMPT_MIN_DIGITS = 1
 _WRITTEN_DIGITS = re.compile(r"\d+")
+# Number words the digit counter does not know, because they are not said one per digit:
+# "two sevens and two nines", "nought". In the prompt they are numbers like any other.
+_PROMPT_ONLY_WORDS = re.compile(
+    r"\b(?:zeros|zeroes|ones|twos|threes|fours|fives|sixes|sevens|eights|nines|nought|naught)\b",
+    re.IGNORECASE,
+)
 
 _SYSTEM = """\
 You read a short transcript of a phone call that an automatic detector has flagged as \
@@ -45,17 +54,20 @@ Organisations (id: name):
 
 
 def redact_for_prompt(text: str) -> str:
-    """What the model may see: no number of two or more digits (docs/SPEC.md §5).
+    """What the model may see: no written digit and no number word (docs/SPEC.md §5).
 
-    Lone digits are ordinary speech ("this one") and stay, unless a digit run's worth
-    of them is left in the context — then someone is reading a number out slowly, one
-    digit at a time between other words, and they all go.
+    Every one goes, a lone "one" or "4" included. A PIN read out slowly ("4, then 9,
+    then 1, then 7") is single digits with ordinary words between them, so a length
+    test lets it through. The screen keeps a lone "one" because people read it; the
+    model does not need it, and the system prompt says numbers were replaced.
+
+    Three things the digit counter leaves alone go as well: an "oh" at the edge of a
+    number ("One. Oh."), a plural ("two sevens"), and a digit character that is not
+    0-9 ("²"). What stays is in docs/SPEC.md §5.
     """
-    redacted = replace_number_runs(text, NUMBER_MIN_DIGITS, REDACTED)
-    lone_digits = sum(run.digit_count for run in find_number_runs(redacted))
-    if lone_digits >= DIGIT_RUN:
-        return replace_number_runs(redacted, 1, REDACTED)
-    return redacted
+    runs_gone = replace_number_runs(text, PROMPT_MIN_DIGITS, REDACTED, trim_loose_oh=False)
+    words_gone = _PROMPT_ONLY_WORDS.sub(REDACTED, runs_gone)
+    return "".join(REDACTED if char.isdigit() else char for char in words_gone)
 
 
 def redact_outbound(text: str) -> str:

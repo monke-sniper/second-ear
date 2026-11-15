@@ -154,13 +154,17 @@ def _trim_loose_oh(text: str, group: list[_Atom]) -> list[_Atom]:
     return group[start:end]
 
 
-def find_number_runs(text: str) -> list[NumberRun]:
+def find_number_runs(text: str, *, trim_loose_oh: bool = True) -> list[NumberRun]:
     """Every number in `text`, spoken or written, as one run per number.
 
     Number words and numerals separated only by spaces, commas, dots, dashes or
     filler sounds belong to the same run, so "4111 1111", "four, uh, five" and
     "Four. Five." are each one run. "oh" is a zero only next to another number
     word: "oh four" is 04, "oh, really" is not a number.
+
+    `trim_loose_oh=False` is the cautious reading, for redaction only: an "oh" at the
+    edge of a run stays in it even across a comma or a full stop ("One. Oh."). An "oh"
+    with no number in its run is still not a number.
     """
     groups: list[list[_Atom]] = []
     for atom in _atoms(text):
@@ -168,7 +172,7 @@ def find_number_runs(text: str) -> list[NumberRun]:
             groups[-1].append(atom)
         else:
             groups.append([atom])
-    trimmed = [_trim_loose_oh(text, group) for group in groups]
+    trimmed = [_trim_loose_oh(text, group) for group in groups] if trim_loose_oh else groups
     return [
         NumberRun(group[0].start, group[-1].end, "".join(atom.digits for atom in group))
         for group in trimmed
@@ -181,15 +185,22 @@ def has_number_run(text: str, min_digits: int) -> bool:
     return any(run.digit_count >= min_digits for run in find_number_runs(text))
 
 
-def replace_number_runs(text: str, min_digits: int, replacement: str | None = None) -> str:
+def replace_number_runs(
+    text: str,
+    min_digits: int,
+    replacement: str | None = None,
+    *,
+    trim_loose_oh: bool = True,
+) -> str:
     """Rewrite every number holding at least `min_digits` digits.
 
     With `replacement` the number becomes that text (redaction). Without it the
-    number becomes its digits (normalisation, for counting only).
+    number becomes its digits (normalisation, for counting only). `trim_loose_oh` is
+    passed to `find_number_runs`.
     """
     pieces: list[str] = []
     cursor = 0
-    for run in find_number_runs(text):
+    for run in find_number_runs(text, trim_loose_oh=trim_loose_oh):
         if run.digit_count < min_digits:
             continue
         pieces.append(text[cursor : run.start])

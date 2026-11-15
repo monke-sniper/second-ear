@@ -11,9 +11,9 @@ What the person sees before anything is happening.
   name is the quiet one (`label` size, muted); the line under it is the loud one (`body`
   size, 600 weight, ink), on every screen.
 - Under that line, on this screen only, the promise: `Second Ear never saves your calls.`
-  (`caption` size, muted). It is true of the code: the server writes no audio and no
-  transcript to disk or to a log, and a test in `tests/test_web_copy.py` fails if a module in
-  `server/` starts writing files.
+  (`label` size, muted: 18 px, the smallest body text `tokens.json` allows). It is true of
+  the code: the server writes no audio and no transcript to disk or to a log, and a test in
+  `tests/test_web_copy.py` fails if a module in `server/` starts writing files.
 - RiskMeter at 0, word `Calm`.
 - Primary button `Start listening` (56 px, full width). Secondary text button `Demo mode`.
   The buttons sit at the bottom of the screen, under the thumb; `Stop` takes the same place.
@@ -28,9 +28,12 @@ The call is live and nothing is wrong yet.
 
 - RiskMeter updating on `risk` events, band per the meter spec.
 - Latest two transcript lines, `body` size, muted, truncated at two lines each.
-- `Stop` button replaces `Start listening`, neutral outline. When the call ends, by `Stop`
-  or by a dropped connection, the transcript goes back to its placeholder: nothing said on
-  the call stays on the screen.
+- `Stop` button replaces `Start listening`, neutral outline. When the call ends, by `Stop`,
+  by a dropped connection or because the mic stopped, the transcript goes back to its
+  placeholder: nothing said on the call stays on the screen. An alert sheet that was open
+  closes too, so `Start listening` can be pressed again.
+- If the mic stops on its own (unplugged, or taken by the system), the call ends and the
+  status line says `The microphone stopped.`
 - Status line: `Listening.` — never a spinner.
 
 Acceptance: the score changing does not move the transcript block; no layout shift.

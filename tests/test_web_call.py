@@ -1,4 +1,4 @@
-"""The client's half of two socket rules, read as text.
+"""The client's half of the call's rules, read as text.
 
 The browser code has no test runner, so these read `web/` the way test_web_copy.py
 does. They pin that the code is there, not that a browser runs it.
@@ -58,3 +58,43 @@ def test_a_server_error_is_shown_in_the_status_line():
 
     assert 'view.setStatus("status_audio_error")' in handler
     assert re.search(r"^\s{4}status_audio_error:", APP_JS, flags=re.MULTILINE) is not None
+
+
+def test_ending_a_call_closes_the_alert_sheet_so_start_can_be_pressed_again():
+    # A connection that drops under an open sheet used to leave the page behind it inert.
+    end = function_body(APP_JS, "function endCall(statusKey)")
+    assert end.index("stopCall()") < end.index("view.closeAlert()") < end.index('setScreen("ready")')
+
+    close_alert = function_body(VIEW_JS, "export function closeAlert()")
+    assert "sheet: null" in close_alert and "closeSheet()" in close_alert
+    close_sheet = function_body(VIEW_JS, "function closeSheet()")
+    assert 'el("alert-scrim").hidden = true;' in close_sheet
+    assert 'el("app").inert = false;' in close_sheet
+    assert 'document.body.classList.remove("is-locked");' in close_sheet
+
+
+def test_a_mic_that_stops_ends_the_call_and_says_so():
+    start = function_body(CALL_JS, "export async function startMicCall(handlers)")
+    assert "track.onended = () => handlers.onMicEnded();" in start
+    assert 'track.readyState === "ended"' in start  # it can stop before the handler is on
+    # Stopping the call ourselves must not look like a dead mic.
+    stop = function_body(CALL_JS, "export function stopCall()")
+    assert stop.index("track.onended = null;") < stop.index("track.stop();")
+
+    assert "onMicEnded }" in function_body(APP_JS, "async function onStart()")
+    assert 'endCall("status_mic_stopped")' in function_body(APP_JS, "function onMicEnded()")
+    assert 'status_mic_stopped: "The microphone stopped."' in APP_JS
+    assert 'MicEndedError: "status_mic_stopped"' in APP_JS
+
+
+def test_the_danger_banner_gets_its_words_when_it_shows_not_when_the_page_loads():
+    # A live region is announced when its text changes, so the text goes in as it appears.
+    paint = function_body(VIEW_JS, "function paintBanner(isShown)")
+    assert paint.index("banner.hidden = !isShown;") < paint.index("node.textContent =")
+    assert 'isShown ? t(node.dataset.copy) : ""' in paint
+
+    assert "paintBanner(true)" in function_body(VIEW_JS, "export function renderDanger()")
+    assert "paintBanner(false)" in function_body(VIEW_JS, "export function resetView()")
+    # initView fills every data-copy element; the reset at its end empties the hidden banner.
+    boot = function_body(VIEW_JS, "export function initView(translate)")
+    assert boot.index("node.textContent = t(node.dataset.copy)") < boot.rindex("resetView()")

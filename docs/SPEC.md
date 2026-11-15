@@ -38,7 +38,7 @@ The audio is never written to disk by the app.
 | Digit warning | ≥ 6 digits counted within the last 10.0 s |
 | Digit counting | spoken or written; only numbers of 2+ digits count; `oh` is 0 only next to another number word |
 | Digit gate | fires only while the latest raw chunk score > 0.50 or a scam alert is active |
-| Explainer context | last 60 s of transcript, every number of 2+ digits replaced with `[number]` |
+| Explainer context | last 60 s of transcript, every written digit and every number word replaced with `[number]` |
 | Explainer timeout | 4.0 s, total |
 | Push | max one scam and one code attempt per call, success or not; never contains digits |
 | Scorer window | last 256 tokens, left truncation |
@@ -49,6 +49,10 @@ Comparisons are strict where written strict (`> 0.85`) and inclusive where writt
 
 Client → server:
 
+- **handshake**: `/ws/audio` is for the app's own page. A request whose `Origin` header
+  names a host other than `localhost` or `127.0.0.1` is refused before the socket opens
+  (HTTP 403). A request with no `Origin` is accepted: a browser always sends one, so only
+  a script or a test comes without.
 - **binary frame**: raw PCM as above. 8 000 bytes is one frame; the server accepts anything
   up to 64 KiB and re-frames. A larger message gets an `error` and is not counted.
 - **text `{"type": "reset"}`**: start a new call. Clears transcript, score history, alert
@@ -185,14 +189,24 @@ Signatures are listed in the code and are not to be reshaped without updating
 
 ## 5. Explainer rules
 
-- Input: last 60 s of transcript, every number of 2+ digits replaced with `[number]`
-  **before** the request, spoken (`four five six`) or written. Spaces, commas, dots, hyphens
-  and filler sounds between digits do not break a number, so `4111 1111 1111 1111`,
-  `4111, 1111, 1111, 1111` and `123 45 6789` are each one number, and a three-digit security
-  code or a four-digit PIN is caught too. A lone digit (`this one`) stays, unless six or more
-  lone digits are left in the context; then they are replaced as well. No digit run may
-  appear anywhere in the prompt. (This follows Part 1 of the plan, "numbers removed"; the
-  6+ rule this file had before was the weaker reading.)
+- Input: last 60 s of transcript, every number replaced with `[number]` **before** the
+  request: every written digit and every number word (`four five six`), a single one
+  included (`this one`, `4`). Length is not the test, because a PIN read out slowly
+  (`4, then 9, then 1, then 7`) is single digits with ordinary words between them. Spaces,
+  commas, dots, hyphens and filler sounds between digits do not break a number, so
+  `4111 1111 1111 1111`, `4111, 1111, 1111, 1111` and `123 45 6789` each become one
+  `[number]`. An `oh` in the same run as a number goes with it, even across a comma or a
+  full stop (`One. Oh.`), and so do the plurals `zeros` to `nines` (`two sevens`) and
+  `nought`. No digit from the call may appear in the request; the only digits in it are
+  the length limits in the fixed instructions. This is stricter than the screen and the
+  push (§3), which keep a lone spoken digit because a person reads them. (Changed on
+  Nov 15 after review. The rule before kept lone digits unless six or more were left,
+  which let a four-digit PIN read slowly through.)
+- What the input rule does not replace, none of it a digit of a code: words of size
+  (`hundred`, `thousand`); ordinals (`fourth`, `twenty-first` becomes `[number]-first`);
+  number words run together (`twentyone`); the letter `o` said for zero; and an `oh` with
+  ordinary words on both sides (`four, then oh, then nine` keeps its `oh`), which cannot
+  be told from the exclamation.
 - Output: JSON only — `{"scam_type", "reason", "safe_exit_line", "claimed_org"}`. A code
   fence around the object is tolerated.
 - Validation, all must pass: parses as JSON; `safe_exit_line` 3–160 chars and contains no
@@ -378,11 +392,39 @@ Added after the Nov 14 review:
   chunk is in Whisper (server shutdown, or the test client) loses that chunk's alert;
   uvicorn does not cancel a handler when the client hangs up.
 - **One copy of the 2+ digits rule.** `explainer_prompt.NUMBER_MIN_DIGITS` is the only
-  definition; the prompt, the reply check, the wire, the pushes and the danger counter
-  import it. `explainer_prompt.redact_outbound` is the one function a `transcript` event
-  and a push body both go through.
+  definition; the reply check, the wire, the pushes and the danger counter import it.
+  `explainer_prompt.redact_outbound` is the one function a `transcript` event and a push
+  body both go through. Since Nov 15 the prompt has its own, stricter rule (§5).
 - **`NtfyNotifier.reset()` is not called by the app.** A new call gets a new notifier
   (Phase 3, below). The method stays for its spec test.
+
+Added after the Nov 15 review:
+
+- **The prompt's transcript holds no number.** `explainer_prompt.redact_for_prompt`
+  replaces every number of one digit or more (§5), so `five thousand dollars` reaches the
+  model as `[number] thousand dollars`. §5 lists what it leaves. The digit counter is not
+  changed: `numbers.find_number_runs` takes `trim_loose_oh=False` for the prompt only, and
+  the plurals are a pattern in `explainer_prompt`, so detection counts what it counted
+  before.
+- **Only the app's own page may open the audio socket.** The allowed `Origin` hosts are
+  `localhost` and `127.0.0.1`, fixed in `app.LOCAL_HOSTS`. Serving the page from any other
+  name (a LAN address, a tunnel) needs that set changed; it is not a setting.
+- **Preflight: no CUDA device is a WARN.** Whisper on cpu/int8 is the normal path, so a
+  laptop without CUDA passes. What still blocks: a foreign `site-packages`, the wrong
+  Python, torch or CTranslate2 failing to import, and a failed Whisper decode.
+- **A live call that ends closes the alert sheet.** Stop, a dropped connection and a
+  stopped mic all go through one function in `app.js`. It closes the sheet and makes the
+  page behind it usable again, so `Start listening` works after a connection drops under
+  an open alert. The line to say goes with the sheet. The demo console is not changed: a
+  replay that loses its connection keeps its sheet, and `Replay` is behind it until
+  `This is a real call` is pressed.
+- **A mic that stops ends the call.** When the mic's track ends on its own (unplugged, or
+  taken by the system), the client stops the call and the status line says
+  `The microphone stopped.` That line is new copy.
+- **The DangerBanner's words are written when it shows**, not when the page loads, and
+  emptied on reset. A screen reader announces a live region when its text changes.
+- **The promise is `label` size.** `Second Ear never saves your calls.` was `caption`
+  size (15 px), under the 18 px floor in `tokens.json`.
 
 Added in Phase 5:
 

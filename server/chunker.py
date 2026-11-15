@@ -1,7 +1,8 @@
 """Turns the raw mic stream into speech-sized chunks.
 
 In: 16 kHz mono s16le PCM frames, 250 ms each, arriving from the browser.
-Out: whole chunks cut at pauses, 2–6 s long, never mid-word.
+Out: chunks 2–6 s long, cut at a pause, or at the 6 s limit when no pause comes (that
+cut can land mid-word).
 It does not transcribe, score, or decide anything; it only decides where a chunk ends.
 """
 

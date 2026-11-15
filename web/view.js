@@ -47,7 +47,7 @@ export function initView(translate) {
 export function resetView() {
   state = START;
   closeSheet();
-  el("danger-banner").hidden = true;
+  paintBanner(false);
   el("real-call-note").hidden = true;
   paintMeter();
   paintTranscript();
@@ -181,7 +181,21 @@ function paintOfficial(info) {
 /** The code warning: one banner, its two fixed lines, no count and never the digits.
  *  Shown once and never re-announced; it stays until reset. */
 export function renderDanger() {
-  el("danger-banner").hidden = false;
+  if (!el("danger-banner").hidden) {
+    return; // already up: it was said once
+  }
+  paintBanner(true);
+}
+
+/** The banner's two lines are written when it shows and emptied when it hides. A screen
+ *  reader announces a live region when its text changes; words that have sat in a hidden
+ *  element since the page loaded are not a change, so they could go unsaid. */
+function paintBanner(isShown) {
+  const banner = el("danger-banner");
+  banner.hidden = !isShown;
+  banner.querySelectorAll("[data-copy]").forEach((node) => {
+    node.textContent = isShown ? t(node.dataset.copy) : "";
+  });
 }
 
 /** "This is a real call": sheet closed, meter neutral. The banner is not touched. */
@@ -194,6 +208,15 @@ export function markRealCall() {
   if (next) {
     next.focus();
   }
+}
+
+/** The call ended with the sheet up: close it, so the page behind it works again.
+ *  Returns whether a sheet was open. */
+export function closeAlert() {
+  const wasOpen = state.sheet !== null;
+  state = { ...state, sheet: null };
+  closeSheet();
+  return wasOpen;
 }
 
 function closeSheet() {
