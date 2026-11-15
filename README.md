@@ -40,7 +40,8 @@ some real calls; the Results section says which.
   (`gemini-3.6-flash`). BothBosu's dialogues were written by a different model
   (`meta-llama-3-70b-instruct`). Neither set was used for training or tuning, and the
   recorded calls were scored once. Each recorded call was improvised from a one-line
-  brief; the briefs and the rules are in [`eval/calls/BRIEFS.md`](eval/calls/BRIEFS.md).
+  brief, and the later ones also had three short beats to follow; the briefs and the
+  rules are in [`eval/calls/BRIEFS.md`](eval/calls/BRIEFS.md).
 - **Our own question: can the model cheat?** In BothBosu the opening gives the label away.
   Looking up the first 6 words of a test dialogue among the training conversations, with no
   model at all, gives the right label for 295 of 320 test dialogues. With the greeting
