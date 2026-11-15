@@ -2,7 +2,7 @@
 
 **Track:** Finance
 
-**Team:** Ayyan Zeeshan, monke-sniper
+**Team:** Ayyan Zeeshan, \<REAL NAME\>
 
 ## The problem
 
@@ -39,7 +39,8 @@ some real calls; the Results section says which.
   legitimate), and a 100-call held-out set (50 scam, 50 legitimate) written by Gemini
   (`gemini-3.6-flash`). BothBosu's dialogues were written by a different model
   (`meta-llama-3-70b-instruct`). Neither set was used for training or tuning, and the
-  recorded calls were scored once.
+  recorded calls were scored once. Each recorded call was improvised from a one-line
+  brief; the briefs and the rules are in [`eval/calls/BRIEFS.md`](eval/calls/BRIEFS.md).
 - **Our own question: can the model cheat?** In BothBosu the opening gives the label away.
   Looking up the first 6 words of a test dialogue among the training conversations, with no
   model at all, gives the right label for 295 of 320 test dialogues. With the greeting
@@ -146,8 +147,9 @@ number as the real one.
   [How To Avoid a Scam](https://consumer.ftc.gov/articles/how-avoid-scam) and
   [What To Know About Romance Scams](https://consumer.ftc.gov/articles/what-know-about-romance-scams).
 - **AI tools:** [Claude Code](https://claude.com/claude-code) built most of the code, and we
-  reviewed all of it. Claude Haiku is the explainer inside the app; it can run on Gemini
-  instead (`EXPLAINER_PROVIDER=gemini`). Gemini wrote the held-out test set.
+  reviewed all of it. [Claude Haiku](https://www.anthropic.com/claude) is the explainer
+  inside the app; it can run on Gemini instead (`EXPLAINER_PROVIDER=gemini`). Gemini,
+  through the [Gemini API](https://ai.google.dev/), wrote the held-out test set.
 
 ---
 
