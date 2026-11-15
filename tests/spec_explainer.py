@@ -20,6 +20,7 @@ from server.config import get_settings
 from server.explainer import GENERIC_SAFE_EXIT, Explainer, Org
 from server.explainer_prompt import redact_for_prompt, redact_outbound
 from server.numbers import find_number_runs
+from server.orgs import load_orgs
 from tests.helpers import chunk
 
 VALID = json.dumps(
@@ -256,6 +257,48 @@ def test_an_oh_with_no_number_in_its_run_stays_in_the_prompt():
     # The limit docs/SPEC.md §5 writes down: it cannot be told from the exclamation.
     assert redact_for_prompt("oh, really") == "oh, really"
     assert redact_for_prompt("four, then oh, then nine") == "[number], then oh, then [number]"
+
+
+REAL_ORGS = load_orgs()
+LISTED = [name for org in REAL_ORGS.values() for name in (org.name, *org.aliases)]
+
+
+def test_an_organisation_from_the_list_is_named_whole_in_the_prompt():
+    # "one" is a number word, and "Capital One" is in the list the model matches against.
+    fake = FakeAnthropic()
+    said = "This is the Capital One fraud department, read me the code 4, then 9, then 1"
+    Explainer(client=fake, orgs=REAL_ORGS).explain([chunk(said, 4.0)], 0.9)
+    asked = fake.calls[0]["messages"][0]["content"]
+    assert "This is the Capital One fraud department" in asked
+    assert "read me the code [number], then [number], then [number]" in asked
+    assert "- capital_one: Capital One" in fake.calls[0]["system"]
+
+
+@pytest.mark.parametrize("name", LISTED)
+def test_every_name_and_alias_in_the_list_reaches_the_model_as_it_was_said(name):
+    said = f"this is {name} calling about your account"
+    assert redact_for_prompt(said, LISTED) == said
+
+
+@pytest.mark.parametrize(
+    ("heard", "sent"),
+    [
+        pytest.param("capital one called, press one", "capital one called, press [number]", id="lower-case"),
+        pytest.param("the code is four Capital One", "the code is [number] Capital One", id="number-before"),
+        # A number that runs on from the name may be a code, so the whole of it goes.
+        pytest.param("Capital One two three four", "Capital [number]", id="runs-on"),
+        pytest.param("Capital One. 4111 1111", "Capital [number]", id="runs-on-past-a-full-stop"),
+        pytest.param("double Capital One oh", "double Capital [number]", id="oh-after"),
+        pytest.param("the Capital Ones", "the Capital [number]", id="not-the-name"),
+    ],
+)
+def test_only_the_name_itself_is_spared(heard, sent):
+    assert redact_for_prompt(heard, LISTED) == sent
+
+
+def test_without_the_list_no_name_is_spared():
+    assert redact_for_prompt("This is Capital One") == "This is Capital [number]"
+    assert redact_for_prompt("This is Capital One", ["Chase", "Medicare"]) == "This is Capital [number]"
 
 
 def test_the_stricter_prompt_rule_does_not_change_what_the_screen_or_the_counter_sees():

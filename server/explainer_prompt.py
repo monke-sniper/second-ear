@@ -2,7 +2,7 @@
 
 In: the transcript chunks, the allowed scam types, and the organisation names.
 Out: a system prompt, and a user message whose transcript holds no digit and no number
-word. Also
+word, except inside an organisation's name from the fixed list ("Capital One"). Also
 `redact_outbound`, the one redaction a transcript event and a push both go through.
 It does not call the model, check replies, or log anything.
 """
@@ -10,10 +10,10 @@ It does not call the model, check replies, or log anything.
 from __future__ import annotations
 
 import re
-from typing import Mapping, Sequence
+from typing import Iterable, Mapping, Sequence
 
 from server.contracts import TranscriptChunk
-from server.numbers import replace_number_runs
+from server.numbers import find_number_runs, replace_number_runs
 
 REDACTED = "[number]"
 # What docs/SPEC.md counts as a number on the screen and in a push: two or more digits.
@@ -53,7 +53,37 @@ Organisations (id: name):
 {org_lines}"""
 
 
-def redact_for_prompt(text: str) -> str:
+def _no_numbers(text: str) -> str:
+    """`text` with every digit and every number word replaced. No name is spared here."""
+    runs_gone = replace_number_runs(text, PROMPT_MIN_DIGITS, REDACTED, trim_loose_oh=False)
+    words_gone = _PROMPT_ONLY_WORDS.sub(REDACTED, runs_gone)
+    return "".join(REDACTED if char.isdigit() else char for char in words_gone)
+
+
+def _whole_names(text: str, names: Iterable[str]) -> list[tuple[int, int]]:
+    """Where an organisation's name sits in `text` with its number standing alone.
+
+    Only a name that redaction would change is looked for ("Capital One"). A place is
+    left out when a number runs across the name's edge ("Capital One, 4 1 1 1"): there
+    the "one" may be the start of a code, so it goes with the rest of the number.
+    """
+    at_risk = {name.lower() for name in names if name.strip() and _no_numbers(name) != name}
+    if not at_risk:
+        return []
+    spelled = (r"\s+".join(re.escape(word) for word in name.split()) for name in at_risk)
+    longest_first = "|".join(sorted(spelled, key=len, reverse=True))
+    pattern = re.compile(rf"(?<![A-Za-z0-9])(?:{longest_first})(?![A-Za-z0-9])", re.IGNORECASE)
+    runs = find_number_runs(text, trim_loose_oh=False)
+    spans: list[tuple[int, int]] = []
+    for match in pattern.finditer(text):
+        start, end = match.span()
+        touching = [run for run in runs if run.start < end and run.end > start]
+        if all(start <= run.start and run.end <= end for run in touching):
+            spans.append((start, end))
+    return spans
+
+
+def redact_for_prompt(text: str, keep: Iterable[str] = ()) -> str:
     """What the model may see: no written digit and no number word (docs/SPEC.md §5).
 
     Every one goes, a lone "one" or "4" included. A PIN read out slowly ("4, then 9,
@@ -64,10 +94,19 @@ def redact_for_prompt(text: str) -> str:
     Three things the digit counter leaves alone go as well: an "oh" at the edge of a
     number ("One. Oh."), a plural ("two sevens"), and a digit character that is not
     0-9 ("²"). What stays is in docs/SPEC.md §5.
+
+    `keep` is the fixed list of organisation names. One of them said in the text stays
+    whole, so "Capital One" does not reach the model as "Capital [number]" when the
+    model is asked to find it in that same list.
     """
-    runs_gone = replace_number_runs(text, PROMPT_MIN_DIGITS, REDACTED, trim_loose_oh=False)
-    words_gone = _PROMPT_ONLY_WORDS.sub(REDACTED, runs_gone)
-    return "".join(REDACTED if char.isdigit() else char for char in words_gone)
+    pieces: list[str] = []
+    cursor = 0
+    for start, end in _whole_names(text, keep):
+        pieces.append(_no_numbers(text[cursor:start]))
+        pieces.append(text[start:end])
+        cursor = end
+    pieces.append(_no_numbers(text[cursor:]))
+    return "".join(pieces)
 
 
 def redact_outbound(text: str) -> str:
@@ -87,14 +126,20 @@ def system_message(scam_types: Sequence[str], org_names: Mapping[str, str]) -> s
     return _SYSTEM.format(scam_types=", ".join(scam_types), org_lines=org_lines)
 
 
-def user_message(chunks: Sequence[TranscriptChunk], context_s: float) -> str:
-    """The last `context_s` seconds of the call, redacted, wrapped in a tag."""
+def user_message(
+    chunks: Sequence[TranscriptChunk], context_s: float, org_names: Iterable[str] = ()
+) -> str:
+    """The last `context_s` seconds of the call, redacted, wrapped in a tag.
+
+    `org_names` are the names and aliases in the fixed organisation list; one of them
+    said on the call is left whole (see `redact_for_prompt`).
+    """
     newest = max((chunk.end_s for chunk in chunks), default=0.0)
     recent = " ".join(chunk.text for chunk in chunks if chunk.end_s > newest - context_s)
     # Angle brackets go first, so the text cannot close the tag and so removing one
     # cannot join two digits after redaction has already run.
     plain = recent.replace("<", " ").replace(">", " ")
     return (
-        f"<transcript>\n{redact_for_prompt(plain)}\n</transcript>\n\n"
+        f"<transcript>\n{redact_for_prompt(plain, org_names)}\n</transcript>\n\n"
         "Return the JSON object for this call."
     )

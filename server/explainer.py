@@ -224,4 +224,5 @@ class Explainer:
     def _prompt(self, chunks: Sequence[TranscriptChunk]) -> str:
         """The exact user message. Kept as its own method so a test can assert the
         prompt contains no digit run."""
-        return user_message(chunks, CONTEXT_S)
+        listed = [name for org in self.orgs.values() for name in (org.name, *org.aliases)]
+        return user_message(chunks, CONTEXT_S, listed)

@@ -38,7 +38,7 @@ The audio is never written to disk by the app.
 | Digit warning | ≥ 6 digits counted within the last 10.0 s |
 | Digit counting | spoken or written; only numbers of 2+ digits count; `oh` is 0 only next to another number word |
 | Digit gate | fires only while the latest raw chunk score > 0.50 or a scam alert is active |
-| Explainer context | last 60 s of transcript, every written digit and every number word replaced with `[number]` |
+| Explainer context | last 60 s of transcript, every written digit and every number word replaced with `[number]`; a name from the organisation list stays whole |
 | Explainer timeout | 4.0 s, total |
 | Push | max one scam and one code attempt per call, success or not; never contains digits |
 | Scorer window | last 256 tokens, left truncation |
@@ -207,6 +207,12 @@ Signatures are listed in the code and are not to be reshaped without updating
   number words run together (`twentyone`); the letter `o` said for zero; and an `oh` with
   ordinary words on both sides (`four, then oh, then nine` keeps its `oh`), which cannot
   be told from the exclamation.
+- A name or alias from `server/orgs.json` said on the call stays whole, in any letter
+  case, so `Capital One` reaches the model as `Capital One` and can be matched against
+  the list in the instructions. Only the name is spared: when a number runs on from it
+  (`Capital One two three four`, `Capital One. 4111 1111`), the whole number goes and the
+  model sees `Capital [number]`. `Capital One` is the only entry with a number in it
+  today.
 - Output: JSON only — `{"scam_type", "reason", "safe_exit_line", "claimed_org"}`. A code
   fence around the object is tolerated.
 - Validation, all must pass: parses as JSON; `safe_exit_line` 3–160 chars and contains no
@@ -406,6 +412,10 @@ Added after the Nov 15 review:
   changed: `numbers.find_number_runs` takes `trim_loose_oh=False` for the prompt only, and
   the plurals are a pattern in `explainer_prompt`, so detection counts what it counted
   before.
+- **An organisation's name is not a number.** The first version of that rule turned
+  `Capital One` into `Capital [number]`, while the instructions ask the model to find
+  `Capital One` in the list. Names and aliases from `orgs.json` are now left whole in the
+  prompt's transcript (§5).
 - **Only the app's own page may open the audio socket.** The allowed `Origin` hosts are
   `localhost` and `127.0.0.1`, fixed in `app.LOCAL_HOSTS`. Serving the page from any other
   name (a LAN address, a tunnel) needs that set changed; it is not a setting.
@@ -511,6 +521,20 @@ Added in Phase 3:
   0.7 s for the slices around it, and in the demo replay the code warning arrived about
   17 s after the chunk closed. With `temperature=0.0` it takes 1.9 s, 2.2 s and 1.4 s
   (three runs) and the warning arrives 1.75 s after the chunk closes.
+- Known limit: the hallucination guard can drop a real read-out. A segment whose text
+  compresses more than 2.4 times is dropped as a repetition loop (§4), and a read-out of
+  one digit said about eight or more times in a row passes that line. By faster-whisper's
+  own formula (the text's bytes over its zlib-compressed bytes), worked out on Nov 15 on
+  text and not measured on audio: `zero` eight times with commas is 2.61 and `1` sixteen
+  times with dashes is 2.58, so both are dropped; `zero` six times is 2.00 and twelve
+  mixed digits said as words are 1.04, so both are kept. When a segment is dropped the
+  digit counter never sees it, and the code warning can be missed. Not changed: letting
+  number segments through would let back in the repeated-digit hallucination in the item
+  above.
+- Known limit: the Origin check allows other localhost ports. `/ws/audio` compares the
+  `Origin` host only (`localhost` or `127.0.0.1`, §3), not the scheme or the port. A page
+  served by another program on this machine (`http://localhost:3000`) can open the socket;
+  a page on any other site cannot.
 - Kaggle API token for the cross-dataset test (Sunday only).
 - A recorded demo call at `eval/calls/demo_scam.wav` and a matching row in `labels.csv`.
 - The design system in `docs/design/` was authored at scaffold time, not sourced from a
