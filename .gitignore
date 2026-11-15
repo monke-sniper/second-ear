@@ -23,6 +23,9 @@ eval/results/*
 !eval/results/*.json
 !eval/results/*.md
 
+# The weekend plan is a working document with contact addresses in it; it stays local.
+docs/second-ear-plan.md
+
 # Notebook and editor noise
 .ipynb_checkpoints/
 .DS_Store
