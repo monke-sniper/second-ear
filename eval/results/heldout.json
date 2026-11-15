@@ -1,10 +1,10 @@
 {
   "schema": "second-ear/results-v1",
   "systems": [
-    "keyword-stand-in",
+    "distilbert",
     "keyword"
   ],
-  "created_utc": "2026-11-14T23:53:01Z",
+  "created_utc": "2026-11-15T00:25:06Z",
   "heldout": {
     "file": "eval/heldout/gemini.jsonl",
     "rows_sha256": "770a8840d693fcff9bc8e0b7691ee6372dd9d332979c1bb7248eebb771ac8677",
@@ -21,17 +21,12 @@
   },
   "threshold": 0.5,
   "scorer": {
-    "name": "keyword-stand-in",
-    "is_stand_in": true,
-    "model_folder_found": false,
-    "model_json_sha256": null,
-    "weights_sha256": null,
-    "weights_match_model_json": null,
-    "stand_in": {
-      "flags": 23,
-      "window_words": 200,
-      "flags_sha256": "f667223191f06ecd6c25b449eb4ea48621df3a1b6da509288aec5bd45a8b5790"
-    }
+    "name": "distilbert",
+    "is_stand_in": false,
+    "model_folder_found": true,
+    "model_json_sha256": "75c66075da9f89609e1cb08dd8c0112e3e5a07f6e6cab9190c1120679c1afe2c",
+    "weights_sha256": "dd546e124810abc9b6facaca1cc0223f42b1d2f88d203764f24f59a0aab1b0ba",
+    "weights_match_model_json": true
   },
   "rule": "any listed phrase present; case-insensitive, whole phrase, plural allowed",
   "keywords": [
@@ -45,52 +40,52 @@
   ],
   "rows": [
     {
-      "system": "keyword-stand-in",
+      "system": "distilbert",
       "test": "gemini_heldout_full",
       "metric": "precision",
-      "value": 0.96,
-      "n": 25,
-      "notes": "n = dialogues flagged as scam; 100 scored in all; tp=24 fp=1 fn=26 tn=49; scam is the positive class; app scorer keyword-stand-in, score >= 0.5"
+      "value": 0.7679,
+      "n": 56,
+      "notes": "n = dialogues flagged as scam; 100 scored in all; tp=43 fp=13 fn=7 tn=37; scam is the positive class; app scorer distilbert, score >= 0.5"
     },
     {
-      "system": "keyword-stand-in",
+      "system": "distilbert",
       "test": "gemini_heldout_full",
       "metric": "recall",
-      "value": 0.48,
+      "value": 0.86,
       "n": 50,
-      "notes": "n = scam dialogues; 100 scored in all; tp=24 fp=1 fn=26 tn=49; scam is the positive class; app scorer keyword-stand-in, score >= 0.5"
+      "notes": "n = scam dialogues; 100 scored in all; tp=43 fp=13 fn=7 tn=37; scam is the positive class; app scorer distilbert, score >= 0.5"
     },
     {
-      "system": "keyword-stand-in",
+      "system": "distilbert",
       "test": "gemini_heldout_full",
       "metric": "f1",
-      "value": 0.64,
+      "value": 0.8113,
       "n": 100,
-      "notes": "n = dialogues scored; 100 scored in all; tp=24 fp=1 fn=26 tn=49; scam is the positive class; app scorer keyword-stand-in, score >= 0.5"
+      "notes": "n = dialogues scored; 100 scored in all; tp=43 fp=13 fn=7 tn=37; scam is the positive class; app scorer distilbert, score >= 0.5"
     },
     {
-      "system": "keyword-stand-in",
+      "system": "distilbert",
       "test": "gemini_heldout_prefix40",
       "metric": "precision",
-      "value": 1.0,
-      "n": 9,
-      "notes": "n = dialogues flagged as scam; 100 scored in all; tp=9 fp=0 fn=41 tn=50; first 40 % of words; scam is the positive class; app scorer keyword-stand-in, score >= 0.5"
+      "value": 0.6667,
+      "n": 57,
+      "notes": "n = dialogues flagged as scam; 100 scored in all; tp=38 fp=19 fn=12 tn=31; first 40 % of words; scam is the positive class; app scorer distilbert, score >= 0.5"
     },
     {
-      "system": "keyword-stand-in",
+      "system": "distilbert",
       "test": "gemini_heldout_prefix40",
       "metric": "recall",
-      "value": 0.18,
+      "value": 0.76,
       "n": 50,
-      "notes": "n = scam dialogues; 100 scored in all; tp=9 fp=0 fn=41 tn=50; first 40 % of words; scam is the positive class; app scorer keyword-stand-in, score >= 0.5"
+      "notes": "n = scam dialogues; 100 scored in all; tp=38 fp=19 fn=12 tn=31; first 40 % of words; scam is the positive class; app scorer distilbert, score >= 0.5"
     },
     {
-      "system": "keyword-stand-in",
+      "system": "distilbert",
       "test": "gemini_heldout_prefix40",
       "metric": "f1",
-      "value": 0.3051,
+      "value": 0.7103,
       "n": 100,
-      "notes": "n = dialogues scored; 100 scored in all; tp=9 fp=0 fn=41 tn=50; first 40 % of words; scam is the positive class; app scorer keyword-stand-in, score >= 0.5"
+      "notes": "n = dialogues scored; 100 scored in all; tp=38 fp=19 fn=12 tn=31; first 40 % of words; scam is the positive class; app scorer distilbert, score >= 0.5"
     },
     {
       "system": "keyword",
@@ -142,18 +137,18 @@
     }
   ],
   "confusion": {
-    "keyword-stand-in": {
+    "distilbert": {
       "gemini_heldout_full": {
-        "tp": 24,
-        "fp": 1,
-        "fn": 26,
-        "tn": 49
+        "tp": 43,
+        "fp": 13,
+        "fn": 7,
+        "tn": 37
       },
       "gemini_heldout_prefix40": {
-        "tp": 9,
-        "fp": 0,
-        "fn": 41,
-        "tn": 50
+        "tp": 38,
+        "fp": 19,
+        "fn": 12,
+        "tn": 31
       }
     },
     "keyword": {
@@ -172,19 +167,19 @@
     }
   },
   "by_type": {
-    "keyword-stand-in": {
+    "distilbert": {
       "gemini_heldout_full": {
         "bank_fraud": {
           "n": 5,
-          "correct": 2
+          "correct": 5
         },
         "bank_fraud_real": {
           "n": 8,
-          "correct": 7
+          "correct": 0
         },
         "delivery": {
           "n": 8,
-          "correct": 8
+          "correct": 7
         },
         "doctor": {
           "n": 9,
@@ -204,57 +199,57 @@
         },
         "irs": {
           "n": 6,
-          "correct": 2
+          "correct": 6
         },
         "medicare": {
           "n": 6,
-          "correct": 1
+          "correct": 5
         },
         "pharmacy": {
           "n": 9,
-          "correct": 9
+          "correct": 7
         },
         "prize": {
           "n": 5,
-          "correct": 2
+          "correct": 5
         },
         "romance": {
           "n": 5,
-          "correct": 2
+          "correct": 1
         },
         "ssn": {
           "n": 6,
-          "correct": 5
+          "correct": 6
         },
         "tech_support": {
           "n": 6,
-          "correct": 1
+          "correct": 6
         },
         "utility": {
           "n": 8,
-          "correct": 8
+          "correct": 6
         }
       },
       "gemini_heldout_prefix40": {
         "bank_fraud": {
           "n": 5,
-          "correct": 0
+          "correct": 5
         },
         "bank_fraud_real": {
           "n": 8,
-          "correct": 8
+          "correct": 0
         },
         "delivery": {
           "n": 8,
-          "correct": 8
+          "correct": 7
         },
         "doctor": {
           "n": 9,
-          "correct": 9
+          "correct": 4
         },
         "gift_card": {
           "n": 5,
-          "correct": 3
+          "correct": 4
         },
         "grandchild_40": {
           "n": 8,
@@ -266,19 +261,19 @@
         },
         "irs": {
           "n": 6,
-          "correct": 0
+          "correct": 6
         },
         "medicare": {
           "n": 6,
-          "correct": 0
+          "correct": 5
         },
         "pharmacy": {
           "n": 9,
-          "correct": 9
+          "correct": 7
         },
         "prize": {
           "n": 5,
-          "correct": 0
+          "correct": 5
         },
         "romance": {
           "n": 5,
@@ -286,15 +281,15 @@
         },
         "ssn": {
           "n": 6,
-          "correct": 5
+          "correct": 6
         },
         "tech_support": {
           "n": 6,
-          "correct": 0
+          "correct": 6
         },
         "utility": {
           "n": 8,
-          "correct": 8
+          "correct": 5
         }
       }
     },
@@ -426,41 +421,41 @@
     }
   },
   "by_opening": {
-    "keyword-stand-in": {
+    "distilbert": {
       "gemini_heldout_full": {
         "hello": {
           "n": 26,
-          "correct": 19
+          "correct": 18
         },
         "hi": {
           "n": 26,
-          "correct": 20
+          "correct": 22
         },
         "none": {
           "n": 24,
-          "correct": 18
+          "correct": 21
         },
         "this is": {
           "n": 24,
-          "correct": 16
+          "correct": 19
         }
       },
       "gemini_heldout_prefix40": {
         "hello": {
           "n": 26,
-          "correct": 16
+          "correct": 15
         },
         "hi": {
           "n": 26,
-          "correct": 15
+          "correct": 18
         },
         "none": {
           "n": 24,
-          "correct": 15
+          "correct": 19
         },
         "this is": {
           "n": 24,
-          "correct": 13
+          "correct": 17
         }
       }
     },
@@ -504,7 +499,6 @@
     }
   },
   "caveats": [
-    "The system scored here is the keyword stand-in (RED_FLAGS in server/scorer.py), not a trained model: models/risk-scorer/ did not exist when this ran.",
     "The generator brief was written by the same assistant that wrote the stand-in's phrase list. The brief names kinds of call only, and the transcripts are Gemini's wording.",
     "A re-run replaces this file; `scorer` says which scorer made the app rows."
   ]

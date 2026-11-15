@@ -1,0 +1,425 @@
+{
+  "schema": "second-ear/results-v1",
+  "system": "distilbert",
+  "recipe": "v3: prefixes, leading greeting removed, plus an opening-cropped copy of every train and val example",
+  "run_name": "distilbert-prefix-v3-opencrop",
+  "created_utc": "2026-11-15T00:18:23Z",
+  "dataset": {
+    "repo": "BothBosu/scam-dialogue",
+    "revision": "321b961b5ae353e19ed479b960658dcd223d5e06",
+    "train_rows": 1280,
+    "test_rows": 320
+  },
+  "preprocessing": {
+    "speaker_tags": "removed",
+    "leading_greeting": "removed from train, val and test: hello, hi, hey, good morning / afternoon / evening, plus the punctuation after it; one rule for every row and both labels",
+    "greeting_removed": {
+      "train_csv": {
+        "rows": 1280,
+        "greeting_removed": 1280,
+        "scam": 640,
+        "legitimate": 640
+      },
+      "test_csv": {
+        "rows": 320,
+        "greeting_removed": 320,
+        "scam": 160,
+        "legitimate": 160
+      }
+    },
+    "headline_tests": [
+      "bothbosu_test_full",
+      "bothbosu_test_prefix40"
+    ]
+  },
+  "split": {
+    "seed": 42,
+    "val_fraction": 0.1,
+    "dropped_from_train": {
+      "duplicate_within_train": 1,
+      "also_in_test": 1
+    },
+    "train_conversations": 1150,
+    "val_conversations": 128,
+    "test_conversations": 320,
+    "prefix_percents": [
+      20,
+      40,
+      60,
+      80,
+      100
+    ],
+    "opening_crop": {
+      "words_removed": "uniform 5 to 15, seeded",
+      "train_prefix_examples": 5750,
+      "train_cropped_copies": 5728,
+      "train_too_short_for_a_copy": 22,
+      "val_prefix_examples": 640,
+      "val_cropped_copies": 639,
+      "val_too_short_for_a_copy": 1,
+      "fewest_words_left_in_a_copy": 1
+    },
+    "train_examples": 11478,
+    "val_examples": 1279
+  },
+  "training": {
+    "base_model": "distilbert-base-uncased",
+    "max_length": 256,
+    "truncation_side": "left",
+    "epochs": 3,
+    "learning_rate": 2e-05,
+    "batch_size": 32,
+    "fp16": true,
+    "device": "cuda",
+    "gpu": "Tesla T4",
+    "train_seconds": 243.5,
+    "resumed": false,
+    "epochs_trained_this_session": 3,
+    "val_by_epoch": [
+      {
+        "epoch": 1,
+        "train_loss": 0.1018,
+        "val_n": 1279,
+        "val_precision": 0.9938,
+        "val_recall": 0.9984,
+        "val_f1": 0.9961
+      },
+      {
+        "epoch": 2,
+        "train_loss": 0.0008,
+        "val_n": 1279,
+        "val_precision": 1.0,
+        "val_recall": 0.9984,
+        "val_f1": 0.9992
+      },
+      {
+        "epoch": 3,
+        "train_loss": 0.0002,
+        "val_n": 1279,
+        "val_precision": 1.0,
+        "val_recall": 0.9984,
+        "val_f1": 0.9992
+      }
+    ],
+    "transformers": "4.57.6",
+    "torch": "2.14.1+cu130"
+  },
+  "threshold": 0.5,
+  "rows": [
+    {
+      "test": "bothbosu_test_full",
+      "metric": "precision",
+      "value": 0.9938,
+      "n": 161,
+      "notes": "n = dialogues flagged as scam; 320 scored in all; tp=160 fp=1 fn=0 tn=159; leading greeting removed, as in training; scam is the positive class; P(scam) >= 0.5; 256 tokens, left-truncated"
+    },
+    {
+      "test": "bothbosu_test_full",
+      "metric": "recall",
+      "value": 1.0,
+      "n": 160,
+      "notes": "n = scam dialogues; 320 scored in all; tp=160 fp=1 fn=0 tn=159; leading greeting removed, as in training; scam is the positive class; P(scam) >= 0.5; 256 tokens, left-truncated"
+    },
+    {
+      "test": "bothbosu_test_full",
+      "metric": "f1",
+      "value": 0.9969,
+      "n": 320,
+      "notes": "n = dialogues scored; 320 scored in all; tp=160 fp=1 fn=0 tn=159; leading greeting removed, as in training; scam is the positive class; P(scam) >= 0.5; 256 tokens, left-truncated"
+    },
+    {
+      "test": "bothbosu_test_prefix40",
+      "metric": "precision",
+      "value": 1.0,
+      "n": 160,
+      "notes": "n = dialogues flagged as scam; 320 scored in all; tp=160 fp=0 fn=0 tn=160; first 40 % of words; leading greeting removed, as in training; scam is the positive class; P(scam) >= 0.5; 256 tokens, left-truncated"
+    },
+    {
+      "test": "bothbosu_test_prefix40",
+      "metric": "recall",
+      "value": 1.0,
+      "n": 160,
+      "notes": "n = scam dialogues; 320 scored in all; tp=160 fp=0 fn=0 tn=160; first 40 % of words; leading greeting removed, as in training; scam is the positive class; P(scam) >= 0.5; 256 tokens, left-truncated"
+    },
+    {
+      "test": "bothbosu_test_prefix40",
+      "metric": "f1",
+      "value": 1.0,
+      "n": 320,
+      "notes": "n = dialogues scored; 320 scored in all; tp=160 fp=0 fn=0 tn=160; first 40 % of words; leading greeting removed, as in training; scam is the positive class; P(scam) >= 0.5; 256 tokens, left-truncated"
+    },
+    {
+      "test": "bothbosu_test_full_with_greeting",
+      "metric": "precision",
+      "value": 0.9938,
+      "n": 161,
+      "notes": "n = dialogues flagged as scam; 320 scored in all; tp=160 fp=1 fn=0 tn=159; original text with its greeting, which training never saw; scam is the positive class; P(scam) >= 0.5; 256 tokens, left-truncated"
+    },
+    {
+      "test": "bothbosu_test_full_with_greeting",
+      "metric": "recall",
+      "value": 1.0,
+      "n": 160,
+      "notes": "n = scam dialogues; 320 scored in all; tp=160 fp=1 fn=0 tn=159; original text with its greeting, which training never saw; scam is the positive class; P(scam) >= 0.5; 256 tokens, left-truncated"
+    },
+    {
+      "test": "bothbosu_test_full_with_greeting",
+      "metric": "f1",
+      "value": 0.9969,
+      "n": 320,
+      "notes": "n = dialogues scored; 320 scored in all; tp=160 fp=1 fn=0 tn=159; original text with its greeting, which training never saw; scam is the positive class; P(scam) >= 0.5; 256 tokens, left-truncated"
+    },
+    {
+      "test": "bothbosu_test_prefix40_with_greeting",
+      "metric": "precision",
+      "value": 1.0,
+      "n": 160,
+      "notes": "n = dialogues flagged as scam; 320 scored in all; tp=160 fp=0 fn=0 tn=160; first 40 % of words; original text with its greeting, which training never saw; scam is the positive class; P(scam) >= 0.5; 256 tokens, left-truncated"
+    },
+    {
+      "test": "bothbosu_test_prefix40_with_greeting",
+      "metric": "recall",
+      "value": 1.0,
+      "n": 160,
+      "notes": "n = scam dialogues; 320 scored in all; tp=160 fp=0 fn=0 tn=160; first 40 % of words; original text with its greeting, which training never saw; scam is the positive class; P(scam) >= 0.5; 256 tokens, left-truncated"
+    },
+    {
+      "test": "bothbosu_test_prefix40_with_greeting",
+      "metric": "f1",
+      "value": 1.0,
+      "n": 320,
+      "notes": "n = dialogues scored; 320 scored in all; tp=160 fp=0 fn=0 tn=160; first 40 % of words; original text with its greeting, which training never saw; scam is the positive class; P(scam) >= 0.5; 256 tokens, left-truncated"
+    },
+    {
+      "test": "training",
+      "metric": "train_seconds",
+      "value": 243.5,
+      "n": 11478,
+      "notes": "Tesla T4, fp16=True, 3 epochs; training and validation, checkpoint writes excluded; n = training examples; resumed=False"
+    }
+  ],
+  "confusion": {
+    "bothbosu_test_full": {
+      "tp": 160,
+      "fp": 1,
+      "fn": 0,
+      "tn": 159
+    },
+    "bothbosu_test_prefix40": {
+      "tp": 160,
+      "fp": 0,
+      "fn": 0,
+      "tn": 160
+    },
+    "bothbosu_test_full_with_greeting": {
+      "tp": 160,
+      "fp": 1,
+      "fn": 0,
+      "tn": 159
+    },
+    "bothbosu_test_prefix40_with_greeting": {
+      "tp": 160,
+      "fp": 0,
+      "fn": 0,
+      "tn": 160
+    }
+  },
+  "by_type": {
+    "bothbosu_test_full": {
+      "delivery": {
+        "n": 40,
+        "correct": 40
+      },
+      "insurance": {
+        "n": 40,
+        "correct": 40
+      },
+      "refund": {
+        "n": 40,
+        "correct": 40
+      },
+      "reward": {
+        "n": 40,
+        "correct": 40
+      },
+      "ssn": {
+        "n": 40,
+        "correct": 40
+      },
+      "support": {
+        "n": 40,
+        "correct": 40
+      },
+      "telemarketing": {
+        "n": 40,
+        "correct": 39
+      },
+      "wrong": {
+        "n": 40,
+        "correct": 40
+      }
+    },
+    "bothbosu_test_prefix40": {
+      "delivery": {
+        "n": 40,
+        "correct": 40
+      },
+      "insurance": {
+        "n": 40,
+        "correct": 40
+      },
+      "refund": {
+        "n": 40,
+        "correct": 40
+      },
+      "reward": {
+        "n": 40,
+        "correct": 40
+      },
+      "ssn": {
+        "n": 40,
+        "correct": 40
+      },
+      "support": {
+        "n": 40,
+        "correct": 40
+      },
+      "telemarketing": {
+        "n": 40,
+        "correct": 40
+      },
+      "wrong": {
+        "n": 40,
+        "correct": 40
+      }
+    },
+    "bothbosu_test_full_with_greeting": {
+      "delivery": {
+        "n": 40,
+        "correct": 40
+      },
+      "insurance": {
+        "n": 40,
+        "correct": 40
+      },
+      "refund": {
+        "n": 40,
+        "correct": 40
+      },
+      "reward": {
+        "n": 40,
+        "correct": 40
+      },
+      "ssn": {
+        "n": 40,
+        "correct": 40
+      },
+      "support": {
+        "n": 40,
+        "correct": 40
+      },
+      "telemarketing": {
+        "n": 40,
+        "correct": 39
+      },
+      "wrong": {
+        "n": 40,
+        "correct": 40
+      }
+    },
+    "bothbosu_test_prefix40_with_greeting": {
+      "delivery": {
+        "n": 40,
+        "correct": 40
+      },
+      "insurance": {
+        "n": 40,
+        "correct": 40
+      },
+      "refund": {
+        "n": 40,
+        "correct": 40
+      },
+      "reward": {
+        "n": 40,
+        "correct": 40
+      },
+      "ssn": {
+        "n": 40,
+        "correct": 40
+      },
+      "support": {
+        "n": 40,
+        "correct": 40
+      },
+      "telemarketing": {
+        "n": 40,
+        "correct": 40
+      },
+      "wrong": {
+        "n": 40,
+        "correct": 40
+      }
+    }
+  },
+  "test_overlap_with_training": {
+    "test_dialogues": 320,
+    "sharing_first_12_words_with_a_training_dialogue": 298,
+    "full_identical_to_a_training_example": 0,
+    "early_prefix_identical_to_a_training_example": 3,
+    "label_given_away_by_first_6_words": 289,
+    "label_given_away_by_first_6_words_with_greeting": 295
+  },
+  "diagnostics": {
+    "opening_removed": {
+      "words_removed": 12,
+      "bothbosu_test_full": {
+        "n": 320,
+        "tp": 160,
+        "fp": 1,
+        "fn": 0,
+        "tn": 159,
+        "precision": 0.9938,
+        "recall": 1.0,
+        "f1": 0.9969
+      },
+      "bothbosu_test_prefix40": {
+        "n": 320,
+        "tp": 159,
+        "fp": 0,
+        "fn": 1,
+        "tn": 160,
+        "precision": 1.0,
+        "recall": 0.9938,
+        "f1": 0.9969
+      }
+    },
+    "greeting_probe": {
+      "note": "six hand-written lines, not dataset rows; P(scam) for each",
+      "scam-like, no greeting": 1.0,
+      "scam-like, opens with hello": 1.0,
+      "scam-like, opens with hi": 1.0,
+      "everyday, no greeting": 0.002,
+      "everyday, opens with hello": 0.001,
+      "everyday, opens with hi": 0.0
+    }
+  },
+  "export": {
+    "archive": "risk-scorer.zip",
+    "files": [
+      "config.json",
+      "model.safetensors",
+      "special_tokens_map.json",
+      "tokenizer.json",
+      "tokenizer_config.json",
+      "vocab.txt"
+    ],
+    "model_safetensors_sha256": "dd546e124810abc9b6facaca1cc0223f42b1d2f88d203764f24f59a0aab1b0ba"
+  },
+  "caveats": [
+    "Synthetic, templated data: 298 of 320 test dialogues share their first 12 words with a training dialogue.",
+    "The opening still gives the label away after the greeting is removed: looking up a test dialogue's first 6 words among the training conversations and taking their majority label is right for 289 of 320 test dialogues with no model at all. With the greeting left in it was 295.",
+    "3 of 320 40 % test prefixes are word for word identical to a training example.",
+    "Trained on BothBosu only; no matched-pairs set."
+  ]
+}
