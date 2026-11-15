@@ -79,6 +79,17 @@ number, a single "one" or "4" included. (Words of size and order, such as "thous
 "fourth", stay; `docs/SPEC.md` §5 lists what is left.) Everyone on the recorded calls
 agreed to be recorded, and the recordings stay out of the repo.
 
+**What the language model sees.** Card numbers and codes never reach Claude Haiku. Before
+the request leaves the laptop, every written digit and every spoken number word in the
+excerpt is replaced with `[number]` (SPEC §5 lists the few number-like words that stay,
+such as "hundred", a lone "oh", and the bank name "Capital One"). The code warning itself
+is counted on the laptop and never involves the model. What can reach the model is the rest
+of the last minute of words, such as a name or "my bank is Chase". Anthropic does not train
+on API inputs or outputs by default and deletes them within 30 days, unless a request is
+flagged under its usage policy or the law requires longer. A real product would add a
+zero-data-retention agreement. If the explainer is switched to Gemini
+(`EXPLAINER_PROVIDER=gemini`), the same text goes to Google instead, under Google's terms.
+
 ## Results
 
 Every number here is in `eval/results/` and is shown with its n. For precision, n is the
@@ -174,6 +185,10 @@ every number above is from the frozen version (tag detection-freeze).
   run on Gemini instead (`EXPLAINER_PROVIDER=gemini`). Gemini, through the
   [Gemini API](https://ai.google.dev/), wrote the held-out test set.
   [ElevenLabs](https://elevenlabs.io/) is the AI voice for the demo video.
+- **What Anthropic does with API data:** Anthropic Privacy Center,
+  ["Is my data used for model training?"](https://privacy.claude.com/en/articles/7996868-is-my-data-used-for-model-training)
+  and ["How long do you store my organization's data?"](https://privacy.claude.com/en/articles/7996866-how-long-do-you-store-my-organization-s-data);
+  Claude docs, [API and data retention](https://platform.claude.com/docs/en/manage-claude/api-and-data-retention).
 
 ---
 
