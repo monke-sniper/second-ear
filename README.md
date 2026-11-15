@@ -162,9 +162,11 @@ every number above is from the frozen version (tag detection-freeze).
 - **Call audio on phones:** [MITRE ATT&CK T1429, Audio Capture](https://attack.mitre.org/techniques/T1429/),
   and [The Register on the Google Play call-recording ban](https://www.theregister.com/2022/04/22/google_banning_thirdparty_callrecording_apps/).
 - **AI tools:** [Claude Code](https://claude.com/claude-code) built most of the code, and we
-  reviewed all of it. [Claude Haiku](https://www.anthropic.com/claude) is the explainer
-  inside the app; it can run on Gemini instead (`EXPLAINER_PROVIDER=gemini`). Gemini,
-  through the [Gemini API](https://ai.google.dev/), wrote the held-out test set.
+  reviewed all of it. [Hermes Agent](https://hermes-agent.nousresearch.com/) by Nous
+  Research, an open-source agent we used for parts of the build, running \<MODEL NAME\>.
+  [Claude Haiku](https://www.anthropic.com/claude) is the explainer inside the app; it can
+  run on Gemini instead (`EXPLAINER_PROVIDER=gemini`). Gemini, through the
+  [Gemini API](https://ai.google.dev/), wrote the held-out test set.
 
 ---
 
