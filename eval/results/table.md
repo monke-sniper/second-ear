@@ -1,6 +1,6 @@
 # Results
 
-Built by `python -m eval.run_eval` from: `model.json`, `baselines.json`, `heldout.json`.
+Built by `python -m eval.run_eval` from: `model.json`, `baselines.json`, `heldout.json`, `calls.json`.
 Every number is copied from its results file. `n` is that metric's own denominator.
 
 ## distilbert (model.json, 2026-11-15T00:18:23Z)
@@ -59,3 +59,16 @@ Every number is copied from its results file. `n` is that metric's own denominat
 | gemini_heldout_prefix40 | precision | 0.8333 | 6 | n = dialogues flagged as scam; 100 scored in all; tp=5 fp=1 fn=45 tn=49; first 40 % of words; scam is the positive class; any listed phrase present |
 | gemini_heldout_prefix40 | recall | 0.1 | 50 | n = scam dialogues; 100 scored in all; tp=5 fp=1 fn=45 tn=49; first 40 % of words; scam is the positive class; any listed phrase present |
 | gemini_heldout_prefix40 | f1 | 0.1786 | 100 | n = dialogues scored; 100 scored in all; tp=5 fp=1 fn=45 tn=49; first 40 % of words; scam is the positive class; any listed phrase present |
+
+## distilbert (calls.json, 2026-11-15T14:58:49Z)
+
+| test | metric | value | n | notes |
+|---|---|---|---|---|
+| recorded_calls | catch_rate | 0.6667 | 6 | n = scam calls; caught = any alert, caution or scam; 4 caught, 2 missed; 12 calls in all; scorer distilbert |
+| recorded_calls | catch_rate_scam_level | 0.6667 | 6 | n = scam calls; only a scam-level alert counts; 12 calls in all; scorer distilbert |
+| recorded_calls | false_alarm_rate | 0.1667 | 6 | n = legitimate calls; any alert, caution or scam; 1 alerted; 12 calls in all; scorer distilbert |
+| recorded_calls | false_alarm_rate_scam_level | 0.1667 | 6 | n = legitimate calls; only a scam-level alert counts; 12 calls in all; scorer distilbert |
+| recorded_calls | median_seconds_to_first_alert | 22.5 | 4 | n = scam calls that raised an alert; audio time at the end of the chunk that raised the alert; a live call adds the decode time; 12 calls in all; scorer distilbert |
+| recorded_calls | alerted_before_money_ask | n/a | 0 | n = scam calls with a money_ask_s in labels.csv; first alert strictly before it; 12 calls in all; scorer distilbert |
+| recorded_calls | danger_fired_rate | 0.5 | 6 | n = scam calls; the digit warning fired; 12 calls in all; scorer distilbert |
+| recorded_calls | danger_fired_rate_legitimate | 0.0 | 6 | n = legitimate calls; the digit warning fired; 12 calls in all; scorer distilbert |

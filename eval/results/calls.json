@@ -1,0 +1,1521 @@
+{
+  "schema": "second-ear/results-v1",
+  "system": "distilbert",
+  "created_utc": "2026-11-15T14:58:49Z",
+  "scorer": {
+    "name": "distilbert",
+    "is_stand_in": false,
+    "model_folder_found": true,
+    "model_json_sha256": "75c66075da9f89609e1cb08dd8c0112e3e5a07f6e6cab9190c1120679c1afe2c",
+    "weights_sha256": "dd546e124810abc9b6facaca1cc0223f42b1d2f88d203764f24f59a0aab1b0ba",
+    "weights_match_model_json": true
+  },
+  "stt": {
+    "model": "base.en",
+    "device": "cpu"
+  },
+  "rules": {
+    "caught": "caught = any alert, caution or scam",
+    "alert_time": "audio time at the end of the chunk that raised the alert; a live call adds the decode time",
+    "end_tail_min_s": 0.5
+  },
+  "calls": [
+    {
+      "file": "01_pharmacy.wav",
+      "label": 0,
+      "scam_type": null,
+      "duration_s": 110.0,
+      "money_ask_s": null,
+      "first_alert_level": null,
+      "first_alert_t_s": null,
+      "first_alert_trigger": null,
+      "first_alert_score": null,
+      "scam_alert_t_s": null,
+      "alerted_before_ask": null,
+      "danger_fired": false,
+      "danger_t_s": null,
+      "peak_score": 0.0003,
+      "peak_t_s": 2.0,
+      "chunks": 23,
+      "tail_s": 0.0,
+      "timeline": [
+        {
+          "t_s": 2.0,
+          "score": 0.0003,
+          "level": "none"
+        },
+        {
+          "t_s": 8.25,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 10.5,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 12.5,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 14.5,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 21.75,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 27.75,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 38.75,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 45.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 49.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 51.75,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 55.75,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 59.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 67.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 69.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 75.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 85.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 89.75,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 94.5,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 97.5,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 103.5,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 108.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 110.0,
+          "score": 0.0001,
+          "level": "none"
+        }
+      ]
+    },
+    {
+      "file": "02_grandparent.wav",
+      "label": 1,
+      "scam_type": "grandparent",
+      "duration_s": 88.0,
+      "money_ask_s": null,
+      "first_alert_level": null,
+      "first_alert_t_s": null,
+      "first_alert_trigger": null,
+      "first_alert_score": null,
+      "scam_alert_t_s": null,
+      "alerted_before_ask": null,
+      "danger_fired": false,
+      "danger_t_s": null,
+      "peak_score": 0.9796,
+      "peak_t_s": 60.5,
+      "chunks": 19,
+      "tail_s": 1.0,
+      "timeline": [
+        {
+          "t_s": 11.25,
+          "score": 0.0003,
+          "level": "none"
+        },
+        {
+          "t_s": 21.25,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 27.25,
+          "score": 0.0003,
+          "level": "none"
+        },
+        {
+          "t_s": 31.75,
+          "score": 0.0003,
+          "level": "none"
+        },
+        {
+          "t_s": 37.75,
+          "score": 0.0006,
+          "level": "none"
+        },
+        {
+          "t_s": 42.25,
+          "score": 0.0028,
+          "level": "none"
+        },
+        {
+          "t_s": 44.75,
+          "score": 0.0021,
+          "level": "none"
+        },
+        {
+          "t_s": 48.75,
+          "score": 0.0048,
+          "level": "none"
+        },
+        {
+          "t_s": 53.25,
+          "score": 0.0015,
+          "level": "none"
+        },
+        {
+          "t_s": 57.0,
+          "score": 0.0013,
+          "level": "none"
+        },
+        {
+          "t_s": 60.5,
+          "score": 0.9796,
+          "level": "none"
+        },
+        {
+          "t_s": 64.75,
+          "score": 0.2362,
+          "level": "none"
+        },
+        {
+          "t_s": 69.0,
+          "score": 0.135,
+          "level": "none"
+        },
+        {
+          "t_s": 74.5,
+          "score": 0.0351,
+          "level": "none"
+        },
+        {
+          "t_s": 76.75,
+          "score": 0.0097,
+          "level": "none"
+        },
+        {
+          "t_s": 80.0,
+          "score": 0.0334,
+          "level": "none"
+        },
+        {
+          "t_s": 82.75,
+          "score": 0.0131,
+          "level": "none"
+        },
+        {
+          "t_s": 84.75,
+          "score": 0.0112,
+          "level": "none"
+        },
+        {
+          "t_s": 87.0,
+          "score": 0.0068,
+          "level": "none"
+        }
+      ]
+    },
+    {
+      "file": "03_doctor.wav",
+      "label": 0,
+      "scam_type": null,
+      "duration_s": 92.0,
+      "money_ask_s": null,
+      "first_alert_level": null,
+      "first_alert_t_s": null,
+      "first_alert_trigger": null,
+      "first_alert_score": null,
+      "scam_alert_t_s": null,
+      "alerted_before_ask": null,
+      "danger_fired": false,
+      "danger_t_s": null,
+      "peak_score": 0.061,
+      "peak_t_s": 90.75,
+      "chunks": 22,
+      "tail_s": 1.25,
+      "timeline": [
+        {
+          "t_s": 8.25,
+          "score": 0.0007,
+          "level": "none"
+        },
+        {
+          "t_s": 10.25,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 15.25,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 17.25,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 20.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 26.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 30.25,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 35.25,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 38.25,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 45.5,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 48.5,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 52.5,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 54.75,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 57.25,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 63.0,
+          "score": 0.0327,
+          "level": "none"
+        },
+        {
+          "t_s": 66.25,
+          "score": 0.0036,
+          "level": "none"
+        },
+        {
+          "t_s": 72.25,
+          "score": 0.0025,
+          "level": "none"
+        },
+        {
+          "t_s": 75.5,
+          "score": 0.0008,
+          "level": "none"
+        },
+        {
+          "t_s": 77.75,
+          "score": 0.0015,
+          "level": "none"
+        },
+        {
+          "t_s": 80.25,
+          "score": 0.0074,
+          "level": "none"
+        },
+        {
+          "t_s": 87.75,
+          "score": 0.0229,
+          "level": "none"
+        },
+        {
+          "t_s": 90.75,
+          "score": 0.061,
+          "level": "none"
+        }
+      ]
+    },
+    {
+      "file": "04_medicare.wav",
+      "label": 1,
+      "scam_type": "medicare",
+      "duration_s": 104.5,
+      "money_ask_s": null,
+      "first_alert_level": "scam",
+      "first_alert_t_s": 35.5,
+      "first_alert_trigger": "two_high_chunks",
+      "first_alert_score": 0.9997,
+      "scam_alert_t_s": 35.5,
+      "alerted_before_ask": null,
+      "danger_fired": true,
+      "danger_t_s": 77.0,
+      "peak_score": 0.9998,
+      "peak_t_s": 50.0,
+      "chunks": 27,
+      "tail_s": 1.25,
+      "timeline": [
+        {
+          "t_s": 10.5,
+          "score": 0.0039,
+          "level": "none"
+        },
+        {
+          "t_s": 12.5,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 15.0,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 22.25,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 25.5,
+          "score": 0.0007,
+          "level": "none"
+        },
+        {
+          "t_s": 28.75,
+          "score": 0.0054,
+          "level": "none"
+        },
+        {
+          "t_s": 31.5,
+          "score": 0.9993,
+          "level": "none"
+        },
+        {
+          "t_s": 35.5,
+          "score": 0.9997,
+          "level": "scam"
+        },
+        {
+          "t_s": 39.5,
+          "score": 0.9998,
+          "level": "scam"
+        },
+        {
+          "t_s": 44.5,
+          "score": 0.9997,
+          "level": "scam"
+        },
+        {
+          "t_s": 50.0,
+          "score": 0.9998,
+          "level": "scam"
+        },
+        {
+          "t_s": 54.0,
+          "score": 0.9998,
+          "level": "scam"
+        },
+        {
+          "t_s": 58.75,
+          "score": 0.9997,
+          "level": "scam"
+        },
+        {
+          "t_s": 63.25,
+          "score": 0.9998,
+          "level": "scam"
+        },
+        {
+          "t_s": 67.5,
+          "score": 0.9997,
+          "level": "scam"
+        },
+        {
+          "t_s": 71.5,
+          "score": 0.9997,
+          "level": "scam"
+        },
+        {
+          "t_s": 75.0,
+          "score": 0.9997,
+          "level": "scam"
+        },
+        {
+          "t_s": 77.0,
+          "score": 0.9997,
+          "level": "scam"
+        },
+        {
+          "t_s": 80.0,
+          "score": 0.9997,
+          "level": "scam"
+        },
+        {
+          "t_s": 82.75,
+          "score": 0.9997,
+          "level": "scam"
+        },
+        {
+          "t_s": 84.75,
+          "score": 0.9997,
+          "level": "scam"
+        },
+        {
+          "t_s": 87.0,
+          "score": 0.9997,
+          "level": "scam"
+        },
+        {
+          "t_s": 93.0,
+          "score": 0.999,
+          "level": "scam"
+        },
+        {
+          "t_s": 99.0,
+          "score": 0.9992,
+          "level": "scam"
+        },
+        {
+          "t_s": 101.0,
+          "score": 0.9991,
+          "level": "scam"
+        },
+        {
+          "t_s": 103.25,
+          "score": 0.9988,
+          "level": "scam"
+        },
+        {
+          "t_s": 104.5,
+          "score": 0.9991,
+          "level": "scam"
+        }
+      ]
+    },
+    {
+      "file": "05_bank_real.wav",
+      "label": 0,
+      "scam_type": null,
+      "duration_s": 65.0,
+      "money_ask_s": null,
+      "first_alert_level": "scam",
+      "first_alert_t_s": 22.75,
+      "first_alert_trigger": "two_high_chunks",
+      "first_alert_score": 0.9998,
+      "scam_alert_t_s": 22.75,
+      "alerted_before_ask": null,
+      "danger_fired": false,
+      "danger_t_s": null,
+      "peak_score": 0.9999,
+      "peak_t_s": 55.75,
+      "chunks": 14,
+      "tail_s": 1.5,
+      "timeline": [
+        {
+          "t_s": 11.25,
+          "score": 0.0007,
+          "level": "none"
+        },
+        {
+          "t_s": 13.25,
+          "score": 0.0003,
+          "level": "none"
+        },
+        {
+          "t_s": 19.25,
+          "score": 0.9998,
+          "level": "none"
+        },
+        {
+          "t_s": 22.75,
+          "score": 0.9998,
+          "level": "scam"
+        },
+        {
+          "t_s": 30.75,
+          "score": 0.9998,
+          "level": "scam"
+        },
+        {
+          "t_s": 32.75,
+          "score": 0.9998,
+          "level": "scam"
+        },
+        {
+          "t_s": 34.75,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 39.5,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 44.25,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 46.5,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 51.0,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 55.75,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 57.75,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 61.5,
+          "score": 0.9999,
+          "level": "scam"
+        }
+      ]
+    },
+    {
+      "file": "06_tech_support.wav",
+      "label": 1,
+      "scam_type": "tech_support",
+      "duration_s": 88.5,
+      "money_ask_s": null,
+      "first_alert_level": "caution",
+      "first_alert_t_s": 16.5,
+      "first_alert_trigger": "smoothed_risk",
+      "first_alert_score": 0.5712,
+      "scam_alert_t_s": 19.0,
+      "alerted_before_ask": null,
+      "danger_fired": false,
+      "danger_t_s": null,
+      "peak_score": 0.9999,
+      "peak_t_s": 78.0,
+      "chunks": 23,
+      "tail_s": 1.25,
+      "timeline": [
+        {
+          "t_s": 10.5,
+          "score": 0.143,
+          "level": "none"
+        },
+        {
+          "t_s": 16.5,
+          "score": 0.9993,
+          "level": "caution"
+        },
+        {
+          "t_s": 19.0,
+          "score": 0.9998,
+          "level": "scam"
+        },
+        {
+          "t_s": 25.0,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 28.25,
+          "score": 0.9998,
+          "level": "scam"
+        },
+        {
+          "t_s": 31.25,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 35.0,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 38.75,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 41.5,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 43.5,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 47.0,
+          "score": 0.9998,
+          "level": "scam"
+        },
+        {
+          "t_s": 49.25,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 53.25,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 61.25,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 63.5,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 65.5,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 70.25,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 73.75,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 78.0,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 82.75,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 85.25,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 87.25,
+          "score": 0.9999,
+          "level": "scam"
+        },
+        {
+          "t_s": 88.5,
+          "score": 0.9999,
+          "level": "scam"
+        }
+      ]
+    },
+    {
+      "file": "07_grandkid_40.wav",
+      "label": 0,
+      "scam_type": null,
+      "duration_s": 59.0,
+      "money_ask_s": null,
+      "first_alert_level": null,
+      "first_alert_t_s": null,
+      "first_alert_trigger": null,
+      "first_alert_score": null,
+      "scam_alert_t_s": null,
+      "alerted_before_ask": null,
+      "danger_fired": false,
+      "danger_t_s": null,
+      "peak_score": 0.0011,
+      "peak_t_s": 11.0,
+      "chunks": 12,
+      "tail_s": 0.0,
+      "timeline": [
+        {
+          "t_s": 11.0,
+          "score": 0.0011,
+          "level": "none"
+        },
+        {
+          "t_s": 14.5,
+          "score": 0.0003,
+          "level": "none"
+        },
+        {
+          "t_s": 20.0,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 23.0,
+          "score": 0.0003,
+          "level": "none"
+        },
+        {
+          "t_s": 26.5,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 31.75,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 35.0,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 45.0,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 48.75,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 53.75,
+          "score": 0.0004,
+          "level": "none"
+        },
+        {
+          "t_s": 56.5,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 59.0,
+          "score": 0.0002,
+          "level": "none"
+        }
+      ]
+    },
+    {
+      "file": "08_fake_bank_code.wav",
+      "label": 1,
+      "scam_type": "bank_fraud",
+      "duration_s": 62.5,
+      "money_ask_s": null,
+      "first_alert_level": "caution",
+      "first_alert_t_s": 18.25,
+      "first_alert_trigger": "smoothed_risk",
+      "first_alert_score": 0.5932,
+      "scam_alert_t_s": 21.5,
+      "alerted_before_ask": null,
+      "danger_fired": true,
+      "danger_t_s": 36.25,
+      "peak_score": 0.9998,
+      "peak_t_s": 18.25,
+      "chunks": 20,
+      "tail_s": 2.75,
+      "timeline": [
+        {
+          "t_s": 9.0,
+          "score": 0.0005,
+          "level": "none"
+        },
+        {
+          "t_s": 12.0,
+          "score": 0.0003,
+          "level": "none"
+        },
+        {
+          "t_s": 14.75,
+          "score": 0.7796,
+          "level": "none"
+        },
+        {
+          "t_s": 18.25,
+          "score": 0.9998,
+          "level": "caution"
+        },
+        {
+          "t_s": 21.5,
+          "score": 0.9998,
+          "level": "scam"
+        },
+        {
+          "t_s": 23.5,
+          "score": 0.0471,
+          "level": "scam"
+        },
+        {
+          "t_s": 26.5,
+          "score": 0.025,
+          "level": "scam"
+        },
+        {
+          "t_s": 28.5,
+          "score": 0.01,
+          "level": "scam"
+        },
+        {
+          "t_s": 32.75,
+          "score": 0.2651,
+          "level": "scam"
+        },
+        {
+          "t_s": 36.25,
+          "score": 0.0317,
+          "level": "scam"
+        },
+        {
+          "t_s": 40.25,
+          "score": 0.0022,
+          "level": "scam"
+        },
+        {
+          "t_s": 42.75,
+          "score": 0.0012,
+          "level": "scam"
+        },
+        {
+          "t_s": 44.75,
+          "score": 0.001,
+          "level": "scam"
+        },
+        {
+          "t_s": 46.75,
+          "score": 0.0006,
+          "level": "scam"
+        },
+        {
+          "t_s": 49.5,
+          "score": 0.0007,
+          "level": "scam"
+        },
+        {
+          "t_s": 52.25,
+          "score": 0.0006,
+          "level": "scam"
+        },
+        {
+          "t_s": 54.75,
+          "score": 0.0004,
+          "level": "scam"
+        },
+        {
+          "t_s": 57.25,
+          "score": 0.0008,
+          "level": "scam"
+        },
+        {
+          "t_s": 59.75,
+          "score": 0.0006,
+          "level": "scam"
+        },
+        {
+          "t_s": 62.5,
+          "score": 0.0003,
+          "level": "scam"
+        }
+      ]
+    },
+    {
+      "file": "09_insurance.wav",
+      "label": 0,
+      "scam_type": null,
+      "duration_s": 51.5,
+      "money_ask_s": null,
+      "first_alert_level": null,
+      "first_alert_t_s": null,
+      "first_alert_trigger": null,
+      "first_alert_score": null,
+      "scam_alert_t_s": null,
+      "alerted_before_ask": null,
+      "danger_fired": false,
+      "danger_t_s": null,
+      "peak_score": 0.0002,
+      "peak_t_s": 6.75,
+      "chunks": 14,
+      "tail_s": 0.0,
+      "timeline": [
+        {
+          "t_s": 6.75,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 9.5,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 15.5,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 18.5,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 20.5,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 23.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 25.75,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 29.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 31.75,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 35.25,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 41.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 43.75,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 48.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 51.25,
+          "score": 0.0001,
+          "level": "none"
+        }
+      ]
+    },
+    {
+      "file": "12_prize_code.wav",
+      "label": 1,
+      "scam_type": "reward",
+      "duration_s": 68.5,
+      "money_ask_s": null,
+      "first_alert_level": "scam",
+      "first_alert_t_s": 26.75,
+      "first_alert_trigger": "two_high_chunks",
+      "first_alert_score": 0.9872,
+      "scam_alert_t_s": 26.75,
+      "alerted_before_ask": null,
+      "danger_fired": true,
+      "danger_t_s": 44.5,
+      "peak_score": 0.9997,
+      "peak_t_s": 42.0,
+      "chunks": 21,
+      "tail_s": 2.5,
+      "timeline": [
+        {
+          "t_s": 2.0,
+          "score": 0.0015,
+          "level": "none"
+        },
+        {
+          "t_s": 7.0,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 9.5,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 12.5,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 14.5,
+          "score": 0.0003,
+          "level": "none"
+        },
+        {
+          "t_s": 17.0,
+          "score": 0.0003,
+          "level": "none"
+        },
+        {
+          "t_s": 22.25,
+          "score": 0.9994,
+          "level": "none"
+        },
+        {
+          "t_s": 26.75,
+          "score": 0.9872,
+          "level": "scam"
+        },
+        {
+          "t_s": 29.25,
+          "score": 0.9947,
+          "level": "scam"
+        },
+        {
+          "t_s": 35.25,
+          "score": 0.9991,
+          "level": "scam"
+        },
+        {
+          "t_s": 39.0,
+          "score": 0.9987,
+          "level": "scam"
+        },
+        {
+          "t_s": 42.0,
+          "score": 0.9997,
+          "level": "scam"
+        },
+        {
+          "t_s": 44.5,
+          "score": 0.9997,
+          "level": "scam"
+        },
+        {
+          "t_s": 47.5,
+          "score": 0.9997,
+          "level": "scam"
+        },
+        {
+          "t_s": 50.25,
+          "score": 0.9997,
+          "level": "scam"
+        },
+        {
+          "t_s": 52.25,
+          "score": 0.9997,
+          "level": "scam"
+        },
+        {
+          "t_s": 54.5,
+          "score": 0.9997,
+          "level": "scam"
+        },
+        {
+          "t_s": 58.0,
+          "score": 0.9997,
+          "level": "scam"
+        },
+        {
+          "t_s": 64.0,
+          "score": 0.9985,
+          "level": "scam"
+        },
+        {
+          "t_s": 66.0,
+          "score": 0.9896,
+          "level": "scam"
+        },
+        {
+          "t_s": 68.5,
+          "score": 0.9802,
+          "level": "scam"
+        }
+      ]
+    },
+    {
+      "file": "14_romance.wav",
+      "label": 1,
+      "scam_type": "romance",
+      "duration_s": 72.5,
+      "money_ask_s": null,
+      "first_alert_level": null,
+      "first_alert_t_s": null,
+      "first_alert_trigger": null,
+      "first_alert_score": null,
+      "scam_alert_t_s": null,
+      "alerted_before_ask": null,
+      "danger_fired": false,
+      "danger_t_s": null,
+      "peak_score": 0.0007,
+      "peak_t_s": 4.0,
+      "chunks": 21,
+      "tail_s": 3.75,
+      "timeline": [
+        {
+          "t_s": 4.0,
+          "score": 0.0007,
+          "level": "none"
+        },
+        {
+          "t_s": 6.0,
+          "score": 0.0003,
+          "level": "none"
+        },
+        {
+          "t_s": 12.0,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 14.0,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 19.25,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 22.75,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 28.75,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 34.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 36.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 40.5,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 44.5,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 47.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 49.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 52.25,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 55.5,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 57.5,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 59.75,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 62.5,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 66.75,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 68.75,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 72.5,
+          "score": 0.0001,
+          "level": "none"
+        }
+      ]
+    },
+    {
+      "file": "17_dentist.wav",
+      "label": 0,
+      "scam_type": null,
+      "duration_s": 50.5,
+      "money_ask_s": null,
+      "first_alert_level": null,
+      "first_alert_t_s": null,
+      "first_alert_trigger": null,
+      "first_alert_score": null,
+      "scam_alert_t_s": null,
+      "alerted_before_ask": null,
+      "danger_fired": false,
+      "danger_t_s": null,
+      "peak_score": 0.005,
+      "peak_t_s": 8.5,
+      "chunks": 16,
+      "tail_s": 4.25,
+      "timeline": [
+        {
+          "t_s": 8.5,
+          "score": 0.005,
+          "level": "none"
+        },
+        {
+          "t_s": 10.75,
+          "score": 0.0003,
+          "level": "none"
+        },
+        {
+          "t_s": 12.75,
+          "score": 0.0006,
+          "level": "none"
+        },
+        {
+          "t_s": 15.5,
+          "score": 0.0013,
+          "level": "none"
+        },
+        {
+          "t_s": 18.0,
+          "score": 0.001,
+          "level": "none"
+        },
+        {
+          "t_s": 20.25,
+          "score": 0.0004,
+          "level": "none"
+        },
+        {
+          "t_s": 22.75,
+          "score": 0.0003,
+          "level": "none"
+        },
+        {
+          "t_s": 26.0,
+          "score": 0.0002,
+          "level": "none"
+        },
+        {
+          "t_s": 30.25,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 33.25,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 37.25,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 39.75,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 41.75,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 44.0,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 46.25,
+          "score": 0.0001,
+          "level": "none"
+        },
+        {
+          "t_s": 50.5,
+          "score": 0.0001,
+          "level": "none"
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "test": "recorded_calls",
+      "metric": "catch_rate",
+      "value": 0.6667,
+      "n": 6,
+      "notes": "n = scam calls; caught = any alert, caution or scam; 4 caught, 2 missed; 12 calls in all; scorer distilbert"
+    },
+    {
+      "test": "recorded_calls",
+      "metric": "catch_rate_scam_level",
+      "value": 0.6667,
+      "n": 6,
+      "notes": "n = scam calls; only a scam-level alert counts; 12 calls in all; scorer distilbert"
+    },
+    {
+      "test": "recorded_calls",
+      "metric": "false_alarm_rate",
+      "value": 0.1667,
+      "n": 6,
+      "notes": "n = legitimate calls; any alert, caution or scam; 1 alerted; 12 calls in all; scorer distilbert"
+    },
+    {
+      "test": "recorded_calls",
+      "metric": "false_alarm_rate_scam_level",
+      "value": 0.1667,
+      "n": 6,
+      "notes": "n = legitimate calls; only a scam-level alert counts; 12 calls in all; scorer distilbert"
+    },
+    {
+      "test": "recorded_calls",
+      "metric": "median_seconds_to_first_alert",
+      "value": 22.5,
+      "n": 4,
+      "notes": "n = scam calls that raised an alert; audio time at the end of the chunk that raised the alert; a live call adds the decode time; 12 calls in all; scorer distilbert"
+    },
+    {
+      "test": "recorded_calls",
+      "metric": "alerted_before_money_ask",
+      "value": null,
+      "n": 0,
+      "notes": "n = scam calls with a money_ask_s in labels.csv; first alert strictly before it; 12 calls in all; scorer distilbert"
+    },
+    {
+      "test": "recorded_calls",
+      "metric": "danger_fired_rate",
+      "value": 0.5,
+      "n": 6,
+      "notes": "n = scam calls; the digit warning fired; 12 calls in all; scorer distilbert"
+    },
+    {
+      "test": "recorded_calls",
+      "metric": "danger_fired_rate_legitimate",
+      "value": 0.0,
+      "n": 6,
+      "notes": "n = legitimate calls; the digit warning fired; 12 calls in all; scorer distilbert"
+    }
+  ],
+  "by_type": {
+    "grandparent": {
+      "n": 1,
+      "caught": 0
+    },
+    "medicare": {
+      "n": 1,
+      "caught": 1
+    },
+    "tech_support": {
+      "n": 1,
+      "caught": 1
+    },
+    "bank_fraud": {
+      "n": 1,
+      "caught": 1
+    },
+    "reward": {
+      "n": 1,
+      "caught": 1
+    },
+    "romance": {
+      "n": 1,
+      "caught": 0
+    }
+  },
+  "caveats": []
+}
