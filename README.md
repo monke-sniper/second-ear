@@ -18,12 +18,17 @@ gets the push when that call looks like a scam.
 ## What we built
 
 A web app that sits next to the phone. The call plays on speaker and the app listens. It
-writes down what is said, scores how much the call sounds like a scam as it goes, and when
-the risk is high it does three things:
+turns what is said into text, scores how much the call sounds like a scam as it goes, and
+when the risk is high it does three things:
 
 - shows a full-screen alert with one short line to say to end the call ("SAY THIS");
 - warns separately when a code or card number is being read out;
 - sends one push to a family member.
+
+**Second Ear never saves your calls.** Audio and words are processed in memory and are
+never written to disk or to a log. Only during an alert, a short text excerpt with every
+number removed is sent to Claude Haiku to name the scam, and the push to the family member
+carries one line saying what kind of scam it looks like.
 
 A demo console replays a recorded call through the same pipeline with the mic off.
 
