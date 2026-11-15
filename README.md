@@ -2,7 +2,7 @@
 
 **Track:** Finance
 
-**Team:** Ayyan Zeeshan, \<REAL NAME\>
+**Team:** Ayyan Zeeshan, Sarim Waseem
 
 ## The problem
 
