@@ -122,6 +122,9 @@ number as the real one.
   call never had two. That rule keeps one word from setting off an alert; here it cost us
   a real scam.
 
+After the freeze we added a guard against Whisper hallucinations found in manual testing;
+every number above is from the frozen version (tag detection-freeze).
+
 ## What we'd do next
 
 - Find a signal other than words for bank calls. The app cannot tell who is calling, so

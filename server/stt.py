@@ -2,6 +2,8 @@
 
 In: one 2–6 s chunk of 16 kHz mono s16le PCM.
 Out: English text with its time window inside the call, from faster-whisper on the GPU.
+A segment that Whisper's own numbers mark as a failed decode (a repetition loop, or words
+over silence) is dropped before the text is built.
 It does not score, classify, store audio, or write transcripts to disk.
 """
 
@@ -28,6 +30,17 @@ ENGLISH_ONLY_SUFFIX = ".en"
 # temperatures; on cpu/int8 that took a 6 s chunk of read-out digits to about 16 s
 # (docs/SPEC.md §10), far too late for a code warning.
 TEMPERATURE = 0.0
+
+# The hallucination guard. These are Whisper's reference thresholds (its
+# compression_ratio_threshold, no_speech_threshold and logprob_threshold defaults) and are
+# not tuned here. Whisper uses the first to ask for a retry at a higher temperature; with
+# one pass per chunk there is no retry, so a segment that fails is dropped instead.
+MAX_COMPRESSION_RATIO = 2.4  # above this the text repeats itself: "a little bit of a little bit of"
+MAX_NO_SPEECH_PROB = 0.6  # above this, with the next line, the words were made up over silence
+MIN_AVG_LOGPROB = -1.0
+# The reason codes. A drop is logged by its code and nothing else.
+DROP_REPETITION = "compression_ratio"
+DROP_NO_SPEECH = "no_speech"
 
 # (model_size, device, compute_type) -> an object with faster-whisper's `transcribe`.
 ModelFactory = Callable[[str, str, str], Any]
@@ -64,6 +77,25 @@ def decode_options(config: SttConfig) -> dict[str, Any]:
         "condition_on_previous_text": False,
         "temperature": TEMPERATURE,
     }
+
+
+def drop_reason(segment: Any) -> str | None:
+    """Why a decoded segment is thrown away, or None to keep it.
+
+    Reads faster-whisper's own fields on the segment: `compression_ratio`, `no_speech_prob`
+    and `avg_logprob`. The comparisons are strict, as in Whisper. A segment without a
+    field is not judged on it.
+    """
+    ratio = getattr(segment, "compression_ratio", None)
+    if ratio is not None and ratio > MAX_COMPRESSION_RATIO:
+        return DROP_REPETITION
+    no_speech = getattr(segment, "no_speech_prob", None)
+    logprob = getattr(segment, "avg_logprob", None)
+    if no_speech is None or logprob is None:
+        return None
+    if no_speech > MAX_NO_SPEECH_PROB and logprob < MIN_AVG_LOGPROB:
+        return DROP_NO_SPEECH
+    return None
 
 
 def pcm16_to_float32(pcm: bytes) -> np.ndarray:
@@ -109,9 +141,10 @@ class StreamTranscriber:
         The VAD is off for this one call. With it on, silence is dropped before the
         model runs, the GPU is never touched, and a missing CUDA library would only
         show up on the first real word of a call. This way the fallback to the CPU
-        happens here, at startup. Whatever Whisper invents for silence is discarded.
+        happens here, at startup. Whatever Whisper invents for silence is discarded,
+        and a segment the guard drops here is not logged: it is not from a call.
         """
-        self._decode(np.zeros(SAMPLE_RATE, dtype=np.float32), vad_filter=False)
+        self._decode(np.zeros(SAMPLE_RATE, dtype=np.float32), log_drops=False, vad_filter=False)
 
     def transcribe(self, pcm: bytes, *, start_s: float = 0.0) -> TranscriptChunk:
         """Transcribe one chunk.
@@ -119,6 +152,8 @@ class StreamTranscriber:
         `start_s` is the chunk's offset in the call; the returned `end_s` is
         `start_s + len(pcm) / 32_000` because the audio is 16 kHz s16le.
         Empty speech returns an empty `text`, never "thank you" — `vad_filter` is on.
+        A segment that fails `drop_reason` is left out, so a chunk that was only a
+        hallucination also returns an empty `text`.
         """
         text, language = self._decode(pcm16_to_float32(pcm))
         return TranscriptChunk(
@@ -129,26 +164,35 @@ class StreamTranscriber:
         """Nothing to forget: each chunk is decoded on its own. The model stays loaded."""
         return None
 
-    def _decode(self, audio: np.ndarray, **overrides: Any) -> tuple[str, str | None]:
+    def _decode(
+        self, audio: np.ndarray, *, log_drops: bool = True, **overrides: Any
+    ) -> tuple[str, str | None]:
         """Run Whisper, and once on the CPU if the configured device fails."""
         options = {**decode_options(self.config), **overrides}
         model = self._ensure_model()
         try:
-            return self._run(model, audio, options)
+            return self._run(model, audio, options, log_drops)
         except Exception as exc:
             if self.device == FALLBACK_DEVICE:
                 raise
             # CUDA can load and still fail on the first real decode (a missing DLL).
             log.warning("whisper decode on %s failed: %s", self.device, type(exc).__name__)
-            return self._run(self._fall_back(model), audio, options)
+            return self._run(self._fall_back(model), audio, options, log_drops)
 
     def _run(
-        self, model: Any, audio: np.ndarray, options: dict[str, Any]
+        self, model: Any, audio: np.ndarray, options: dict[str, Any], log_drops: bool = True
     ) -> tuple[str, str | None]:
         segments, info = model.transcribe(audio, **options)
+        kept: list[str] = []
         # Segments are a generator: the decoding happens here, inside the caller's try.
-        text = " ".join(segment.text.strip() for segment in segments).strip()
-        return text, getattr(info, "language", None)
+        for segment in segments:
+            reason = drop_reason(segment)
+            if reason is None:
+                kept.append(segment.text.strip())
+            elif log_drops:
+                # The code only. Never the text, which may be what was said on the call.
+                log.warning("whisper segment dropped: %s", reason)
+        return " ".join(kept).strip(), getattr(info, "language", None)
 
     def _ensure_model(self) -> Any:
         with self._lock:

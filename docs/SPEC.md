@@ -131,7 +131,17 @@ Signatures are listed in the code and are not to be reshaped without updating
   `vad_filter=True` so silence never becomes invented words, and
   `condition_on_previous_text=False` so each chunk is decoded on its own.
   `temperature=0.0` so a chunk is decoded once, with none of Whisper's retries at higher
-  temperatures (§10 has the timing that decided it). If CUDA fails, at
+  temperatures (§10 has the timing that decided it). **Hallucination guard:** a decoded
+  segment is dropped when faster-whisper's own fields mark it as a failed decode:
+  `compression_ratio > 2.4` (a repetition loop, reason code `compression_ratio`), or
+  `no_speech_prob > 0.6` and `avg_logprob < -1.0` (words over silence, reason code
+  `no_speech`). These are Whisper's reference thresholds and are not tuned. Whisper uses
+  the first one to ask for a retry at a higher temperature; with one pass per chunk there
+  is no retry, so the segment is removed instead, and a chunk that was only a
+  hallucination comes back as empty text, which the session treats as silence. A drop is
+  logged by its reason code and nothing else. The guard was added after the detection
+  freeze (tag `detection-freeze`), from a near-silent call in manual testing; every
+  number in `eval/results/` is from the frozen version. If CUDA fails, at
   load or on a decode, the model is reloaded on cpu/int8 and stays there. `warmup()`
   decodes once with the VAD off, so that failure shows at startup and not on the first
   word of a call. Target: ≤ 1 s behind the call on the 4060.
