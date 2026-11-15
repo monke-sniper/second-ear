@@ -14,13 +14,14 @@ from typing import Protocol
 
 from server.chunker import AudioChunker, is_silent
 from server.contracts import FRAME_BYTES, SAMPLE_RATE, SAMPLE_WIDTH_BYTES, TranscriptChunk
+
+# When a call ends, what no chunk had closed over is still heard from half a second up.
+# This is the live socket's own constant, imported so the two cannot drift apart.
+from server.live import END_TAIL_MIN_S
 from server.pipeline import CallSession, Step
 from server.scorer import RiskScorer
 from server.stt import pcm_duration_s
 
-# When a call ends, what no chunk had closed over is still heard from half a second up.
-# The live socket does the same with END_TAIL_MIN_S in server/live.py.
-TAIL_MIN_S = 0.5
 CONVERT = "ffmpeg -i {name} -ac 1 -ar 16000 -c:a pcm_s16le fixed_{name}"
 
 
@@ -81,7 +82,7 @@ def replay_call(pcm: bytes, transcriber: Transcriber, scorer: RiskScorer) -> Rep
 
     # End of the recording: `flush()` returns a tail of at least `min_s`, so lower it.
     left_s = chunker.buffered_s
-    chunker.config = replace(chunker.config, min_s=TAIL_MIN_S)
+    chunker.config = replace(chunker.config, min_s=END_TAIL_MIN_S)
     tail = chunker.flush()
     if tail is not None:
         hear(tail)

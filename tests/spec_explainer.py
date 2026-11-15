@@ -16,7 +16,8 @@ from types import SimpleNamespace
 import pytest
 
 from server.config import get_settings
-from server.explainer import GENERIC_SAFE_EXIT, Explainer, Org, redact_digits
+from server.explainer import GENERIC_SAFE_EXIT, Explainer, Org
+from server.explainer_prompt import redact_for_prompt
 from tests.helpers import chunk
 
 VALID = json.dumps(
@@ -155,11 +156,11 @@ def sent_text(fake: FakeAnthropic) -> str:
 
 
 def test_spoken_digit_runs_are_redacted():
-    assert redact_digits("my card is four five six seven eight nine") == "my card is [number]"
+    assert redact_for_prompt("my card is four five six seven eight nine") == "my card is [number]"
 
 
 def test_numerals_read_in_comma_groups_are_one_redacted_run():
-    out = redact_digits("it is 4111, 1111, 1111, 1111 okay")
+    out = redact_for_prompt("it is 4111, 1111, 1111, 1111 okay")
     leaked = any(char.isdigit() for char in out)
     assert leaked is False
     assert "[number]" in out

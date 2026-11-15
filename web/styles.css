@@ -596,10 +596,16 @@ blockquote {
 
 /* ---------------------------------------------------------------- Laptop frame */
 
-/* On a wide screen the app is one phone-sized panel on a dark backdrop, which is what a
-   screen recording shows. The body is the panel: its transform makes it the box that the
-   fixed banner and scrim are held in, so neither spans the window. Phones are untouched. */
-@media (min-width: 600px) {
+/* On a screen wide and tall enough to show it whole, the app is one phone-sized panel on a
+   dark backdrop, which is what a screen recording shows. The body is the panel: its
+   transform makes it the box that the fixed banner and scrim are held in, so neither
+   spans the window.
+   The height condition matters: the banner and the alert sheet are pinned to the panel,
+   so a viewport shorter than the panel (a phone on its side, a short laptop window) would
+   open the sheet below the fold. There the frame is off and both stay pinned to the
+   screen. 700 px is the panel (640) plus its margins (2 × 24), rounded up; a media query
+   cannot read a token. */
+@media (min-width: 600px) and (min-height: 700px) {
   /* A scrolling html keeps the body's own overflow on the body, so the panel's rounded
      corners clip the banner and the sheet. */
   html {

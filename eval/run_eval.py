@@ -14,7 +14,7 @@ from typing import Any
 
 from eval.labels import CallLabel, load_labels
 from eval.metrics import RESULTS_SCHEMA, utc_now, write_json
-from eval.replay import TAIL_MIN_S, Transcriber, WavFormatError, read_wav, replay_call
+from eval.replay import END_TAIL_MIN_S, Transcriber, WavFormatError, read_wav, replay_call
 from eval.report import CAUGHT_RULE, TIME_NOTE, call_row, failures_markdown, snippet, summarize, verdict
 from eval.scorer_id import describe_scorer, scorer_caveats
 from eval.table import write_table
@@ -64,7 +64,7 @@ def build_payload(rows: list[dict], scorer: RiskScorer, transcriber: Any) -> dic
         "created_utc": utc_now(),
         "scorer": info,
         "stt": {"model": getattr(config, "model_size", None), "device": getattr(transcriber, "device", None)},
-        "rules": {"caught": CAUGHT_RULE, "alert_time": TIME_NOTE, "end_tail_min_s": TAIL_MIN_S},
+        "rules": {"caught": CAUGHT_RULE, "alert_time": TIME_NOTE, "end_tail_min_s": END_TAIL_MIN_S},
         "calls": rows,
         "rows": summarize(rows, info["name"]),
         "by_type": by_type,

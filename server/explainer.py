@@ -19,9 +19,8 @@ from typing import TYPE_CHECKING, Any, Mapping, Sequence
 from server.config import get_settings
 from server.contracts import ExplainerResult, TranscriptChunk
 from server.explainer_checks import OK, Reply, check_reply
-from server.explainer_prompt import REDACTED, system_message, user_message
+from server.explainer_prompt import system_message, user_message
 from server.gemini_client import GEMINI_REQUEST_OPTIONS, GeminiClient
-from server.numbers import replace_number_runs
 from server.orgs import Org, load_orgs  # also imported from here by tests and callers
 
 if TYPE_CHECKING:  # import only for type checkers; the SDK is loaded lazily at runtime
@@ -67,17 +66,6 @@ def _failure_code(exc: BaseException) -> str:
     if isinstance(code, str) and _LOG_CODE.fullmatch(code):
         return code
     return type(exc).__name__
-
-
-def redact_digits(text: str, min_run: int = 6) -> str:
-    """Replace every number of `min_run` or more digits with `[number]`.
-
-    Spoken and written numbers are treated alike ("four five six seven eight nine",
-    "4111 1111", "123-45-6789"), and spaces, commas, dots and hyphens do not break a
-    number. The prompt itself is redacted harder than this default, at two digits:
-    see `explainer_prompt.redact_for_prompt`.
-    """
-    return replace_number_runs(text, min_run, REDACTED)
 
 
 def _degraded() -> ExplainerResult:

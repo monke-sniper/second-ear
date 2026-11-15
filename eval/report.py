@@ -7,7 +7,6 @@ It does not run audio, load a model or write a file; run_eval.py does that.
 
 from __future__ import annotations
 
-import re
 import statistics
 from typing import Any, Sequence
 
@@ -15,13 +14,11 @@ from eval.labels import CallLabel
 from eval.metrics import rounded
 from eval.replay import Replay
 from server.contracts import AlertLevel, TranscriptChunk
-from server.numbers import replace_number_runs
+from server.explainer_prompt import redact_outbound
 
 TEST = "recorded_calls"
 SNIPPET_WORDS = 60
 SNIPPET_AROUND_S = 10.0
-REDACTED = "[number]"
-_DIGITS = re.compile(r"\d+")
 # Fixed before any recorded call was scored (docs/SPEC.md §8).
 CAUGHT_RULE = "caught = any alert, caution or scam"
 TIME_NOTE = "audio time at the end of the chunk that raised the alert; a live call adds the decode time"
@@ -99,16 +96,12 @@ def summarize(rows: Sequence[dict[str, Any]], scorer_name: str) -> list[dict[str
     ]
 
 
-def redact(text: str) -> str:
-    """No written digit and no spoken number of two digits or more, as on the wire."""
-    return _DIGITS.sub(REDACTED, replace_number_runs(text, 2, REDACTED))
-
-
 def snippet(row: dict[str, Any], chunks: Sequence[TranscriptChunk]) -> str:
     """Up to `SNIPPET_WORDS` words from where the call went wrong, numbers replaced.
 
     A false alarm: what was said up to the alert. A miss: what was said around the
-    money ask when it is labelled, else the end of the call.
+    money ask when it is labelled, else the end of the call. The text goes through
+    `redact_outbound`, the same rule a transcript event and a push go through.
     """
     centre = row["first_alert_t_s"] if row["label"] == 0 else row["money_ask_s"]
     if centre is None:
@@ -116,7 +109,7 @@ def snippet(row: dict[str, Any], chunks: Sequence[TranscriptChunk]) -> str:
     else:
         picked = [c for c in chunks if c.end_s <= centre + SNIPPET_AROUND_S and c.end_s >= centre - 2 * SNIPPET_AROUND_S]
     words = " ".join(chunk.text for chunk in picked or chunks).split()
-    return redact(" ".join(words[-SNIPPET_WORDS:]))
+    return redact_outbound(" ".join(words[-SNIPPET_WORDS:]))
 
 
 def failures_markdown(rows: Sequence[dict[str, Any]], snippets: dict[str, str], scorer_name: str, caveats: Sequence[str]) -> str:

@@ -54,6 +54,15 @@ def load_heldout(path: Path) -> list[dict]:
     return [{**row, "text": " ".join(row["text"].split())} for row in rows]
 
 
+def shown_path(path: Path) -> str:
+    """How a results file names the set it scored: its path inside the repo, or just the
+    file name for a set kept somewhere else. Never a path from someone's machine."""
+    try:
+        return Path(path).resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        return Path(path).name
+
+
 def rows_sha256(rows: list[dict]) -> str:
     """A fingerprint of the set's content. It does not depend on line endings, so it is
     the same on Windows, where git checks the file out with CRLF, and everywhere else."""
@@ -96,7 +105,7 @@ def build_payload(rows: list[dict], scorer: RiskScorer, set_path: Path) -> dict:
         "systems": list(systems),
         "created_utc": utc_now(),
         "heldout": {
-            "file": "eval/heldout/gemini.jsonl",
+            "file": shown_path(set_path),
             "rows_sha256": rows_sha256(rows),
             "rows": len(rows),
             "scam": labels[1],

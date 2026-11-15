@@ -111,6 +111,14 @@ def test_an_empty_or_broken_labels_file_stops_the_run(calls_dir, tmp_path):
     assert not (tmp_path / "results").exists()
 
 
+def test_a_labels_file_saved_by_excel_with_a_byte_order_mark_still_lists_its_calls(calls_dir, tmp_path):
+    (calls_dir / "labels.csv").write_bytes(b"\xef\xbb\xbf" + LABELS.encode("utf-8"))
+
+    payload = run(calls_dir, tmp_path / "results", Says(SPEECH), FlagsGift(), dry_run=True)
+
+    assert [row["file"] for row in payload["calls"]] == ["scam.wav", "ok.wav", "false.wav", "missed.wav"]
+
+
 def test_totals_with_nothing_to_count_are_none_with_n_zero():
     rows = summarize([], "fake-scorer")
 

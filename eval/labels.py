@@ -22,9 +22,13 @@ class CallLabel:
 
 
 def load_labels(path: Path) -> list[CallLabel]:
-    """Read labels.csv. Blank rows are skipped; `label` must be 0 or 1."""
+    """Read labels.csv. Blank rows are skipped; `label` must be 0 or 1.
+
+    Read as `utf-8-sig`: Excel's "CSV UTF-8" puts a byte-order mark before the first
+    header, and without this the `file` column would not be found on any row.
+    """
     rows: list[CallLabel] = []
-    with Path(path).open(newline="", encoding="utf-8") as handle:
+    with Path(path).open(newline="", encoding="utf-8-sig") as handle:
         for raw in csv.DictReader(handle):
             name = (raw.get("file") or "").strip()
             if not name:

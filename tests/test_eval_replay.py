@@ -11,7 +11,8 @@ import wave
 
 import pytest
 
-from eval.replay import TAIL_MIN_S, WavFormatError, read_wav, replay_call
+from eval import replay as replay_module
+from eval.replay import WavFormatError, read_wav, replay_call
 from server import live
 from server.contracts import FRAME_BYTES, TranscriptChunk
 from server.stt import pcm_duration_s
@@ -101,8 +102,15 @@ def test_a_recording_cut_by_the_chunker_alone_has_no_tail():
     assert [step.transcript is not None for step in replay.steps] == [True, True]
 
 
-def test_the_tail_rule_is_the_live_socket_s_rule():
-    assert getattr(live, "END_TAIL_MIN_S", TAIL_MIN_S) == TAIL_MIN_S
+def test_the_tail_rule_is_the_live_socket_s_own_constant(monkeypatch):
+    assert replay_module.END_TAIL_MIN_S is live.END_TAIL_MIN_S
+    assert not hasattr(replay_module, "TAIL_MIN_S")  # no second copy to drift
+
+    # And the replay obeys it: with the minimum raised, a one-second tail is not heard.
+    monkeypatch.setattr(replay_module, "END_TAIL_MIN_S", 1.5)
+    whisper = Says(["we need to talk", "never heard"])
+    replay = replay_call(SPOKEN + tone(4), whisper, Always(0.1))
+    assert len(whisper.calls) == 1 and replay.tail_s == 0.0
 
 
 def test_a_whisper_failure_stops_the_replay_instead_of_passing_for_silence():

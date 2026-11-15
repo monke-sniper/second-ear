@@ -83,10 +83,12 @@ The judges' view (`/?demo=1`), built for a two-minute walkthrough.
 
 ## Wide screens
 
-From 600 px wide, the column is one 360 × 640 panel (`surface`, `radius.lg`,
-`elevation.sheet`) on a `neutral.base` backdrop. The DangerBanner and the scrim stay inside
-the panel; neither spans the window. This is what a screen recording shows. On a phone
-nothing changes.
+From 600 px wide **and** 700 px tall, the column is one 360 × 640 panel (`surface`,
+`radius.lg`, `elevation.sheet`) on a `neutral.base` backdrop. The DangerBanner and the
+scrim stay inside the panel; neither spans the window. This is what a screen recording
+shows. On anything narrower or shorter (a phone either way up, a short laptop window)
+there is no panel: the banner and the alert sheet stay pinned to the screen, because a
+panel taller than the screen would open the sheet below the fold.
 
 Acceptance: plays `eval/calls/demo_scam.wav` end to end after a page reload; visible proof the
 mic is off.
