@@ -21,9 +21,8 @@ from eval.heldout_brief import BRIEF, SCENARIOS, Scenario, Slot, batch_request, 
 from eval.heldout_checks import CHECKS, clean, format_problem
 from eval.metrics import utc_now, write_json
 from server.config import ROOT, get_settings
+from server.gemini_client import API_BASE, KEY_HEADER  # one endpoint, one key header
 
-API_BASE = "https://generativelanguage.googleapis.com/v1beta"
-KEY_HEADER = "x-goog-api-key"  # the key travels in a header, never in the URL
 TIMEOUT_S = 240.0
 RETRY_STATUS = frozenset({429, 500, 503})
 HTTP_TRIES = 5

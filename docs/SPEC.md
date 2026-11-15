@@ -199,6 +199,20 @@ Signatures are listed in the code and are not to be reshaped without updating
   `reward`, `romance`, `bank_fraud`, `other`.
 - Generic safe-exit line: `I'll call you back at the number on my card.`
 - One call per alert, never per chunk.
+- **Provider.** `EXPLAINER_PROVIDER` in `.env` is `anthropic` (Haiku, the default) or
+  `gemini`; anything else counts as `anthropic`. Gemini uses `GEMINI_API_KEY` and
+  `GEMINI_MODEL`, the same settings `eval/make_heldout.py` uses, and is called over httpx
+  with no extra dependency (`server/gemini_client.py`): `generateContent`, JSON output
+  asked for, the key in the `x-goog-api-key` header and never in a URL. The provider
+  picks the client, the model id and the optional request params (Anthropic's `thinking`
+  and `output_config` are not sent to Gemini; Gemini gets minimal thinking). Every other
+  rule in this section is the same for both: redaction before the request, the 4 s
+  budget, validation, and the degraded result.
+- No retries inside the 4 s budget, on either provider. A 503, a 429 or a timeout from
+  Gemini degrades at once; the log line holds the HTTP status (`request_failed:http_503`)
+  or an exception class name, and the error body is never read.
+- The provider never touches detection. The scorer, the alert rules and the digit warning
+  do not know which model the explainer asks.
 
 ## 6. Data and training
 

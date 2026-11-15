@@ -48,3 +48,17 @@ def test_env_example_documents_both_gemini_settings_and_holds_no_key():
 
     assert "GEMINI_API_KEY=" in lines
     assert f"GEMINI_MODEL={DEFAULT_GEMINI_MODEL}" in lines
+    assert "EXPLAINER_PROVIDER=anthropic" in lines
+
+
+@pytest.mark.parametrize(
+    ("raw", "provider"),
+    [(None, "anthropic"), ("", "anthropic"), ("gemini", "gemini"), (" Gemini ", "gemini"), ("openai", "anthropic")],
+)
+def test_the_explainer_provider_is_anthropic_unless_it_is_set_to_gemini(fresh_settings, raw, provider):
+    if raw is None:
+        fresh_settings.delenv("EXPLAINER_PROVIDER", raising=False)
+    else:
+        fresh_settings.setenv("EXPLAINER_PROVIDER", raw)
+
+    assert get_settings().explainer_provider == provider

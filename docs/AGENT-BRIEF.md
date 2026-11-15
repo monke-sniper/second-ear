@@ -70,7 +70,8 @@ laptop (about 0.8 s for a 4 s chunk) because the CUDA libraries are missing — 
 | `server/alerts.py` | Score history in, alert decision out (pure functions) |
 | `server/danger.py` | Transcript + risk in, digit-warning decision out |
 | `server/numbers.py` | Finds spoken and written numbers in text; counting and redaction both use it |
-| `server/explainer.py` | Alert in, named scam + safe-exit line + org out (Haiku) |
+| `server/explainer.py` | Alert in, named scam + safe-exit line + org out (Haiku, or Gemini when `EXPLAINER_PROVIDER=gemini`) |
+| `server/gemini_client.py` | Gemini over httpx with the `messages.create` shape the explainer calls. One request, no retries |
 | `server/explainer_prompt.py` | The two messages Haiku sees, with every number removed |
 | `server/explainer_checks.py` | Validates Haiku's reply before any of it reaches the screen or a push |
 | `server/notify.py` | One ntfy push per alert type per call |

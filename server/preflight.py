@@ -144,7 +144,12 @@ def check_model_dir(settings: Settings) -> bool:
 
 
 def check_env(settings: Settings) -> bool:
-    if settings.has_anthropic:
+    if settings.explainer_provider == "gemini":
+        if settings.has_gemini:
+            _pass(f"EXPLAINER_PROVIDER=gemini, GEMINI_API_KEY set (model {settings.gemini_model})")
+        else:
+            _warn("EXPLAINER_PROVIDER=gemini but GEMINI_API_KEY is missing — explainer will always use the generic line")
+    elif settings.has_anthropic:
         _pass(f"ANTHROPIC_API_KEY set (model {settings.haiku_model})")
     else:
         _warn("ANTHROPIC_API_KEY missing — explainer will always use the generic line")

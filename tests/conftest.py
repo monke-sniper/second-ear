@@ -15,6 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from server.app import create_app
+from server.config import get_settings
 from server.explainer import Explainer
 from server.live import Services
 from server.notify import NtfyNotifier
@@ -64,6 +65,22 @@ def scripted(texts: Sequence[str], scores: Sequence[float], **doubles: object) -
     return Harness(
         transcriber=FakeTranscriber(texts), scorer=ScriptedScorer(scores), **doubles
     )
+
+
+@pytest.fixture(autouse=True)
+def no_real_model_keys(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """No test may reach a real model, whatever .env holds.
+
+    Both provider keys are blanked and the provider is the default for every test, so an
+    Explainer built without a client finds no key and makes no request. A test that needs
+    a key or the other provider sets it itself.
+    """
+    for name in ("ANTHROPIC_API_KEY", "GEMINI_API_KEY"):
+        monkeypatch.setenv(name, "")
+    monkeypatch.setenv("EXPLAINER_PROVIDER", "anthropic")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 @pytest.fixture()

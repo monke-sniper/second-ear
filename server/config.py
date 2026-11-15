@@ -21,10 +21,14 @@ CALLS_DIR = ROOT / "eval" / "calls"
 
 # The one place the Haiku id is written. Overridable from .env for the weekend.
 DEFAULT_HAIKU_MODEL = "claude-haiku-5-5"
-# The one place the Gemini id is written. Only eval/make_heldout.py calls Gemini; the
-# server never does. A stable Flash id on Google's models page on Nov 14. The newer
-# gemini-3.8-flash timed out and answered 503 that evening, so the set was written with this.
+# The one place the Gemini id is written. eval/make_heldout.py uses it, and so does the
+# explainer when EXPLAINER_PROVIDER=gemini. A stable Flash id on Google's models page on
+# Nov 14. The newer gemini-3.8-flash timed out and answered 503 that evening, so the
+# held-out set was written with this.
 DEFAULT_GEMINI_MODEL = "gemini-3.6-flash"
+# Which model the explainer asks. Anything else in .env counts as the default.
+EXPLAINER_PROVIDERS = ("anthropic", "gemini")
+DEFAULT_EXPLAINER_PROVIDER = "anthropic"
 
 load_dotenv(ROOT / ".env")
 
@@ -42,6 +46,7 @@ class Settings:
     orgs_path: Path
     gemini_api_key: str | None
     gemini_model: str
+    explainer_provider: str = DEFAULT_EXPLAINER_PROVIDER
 
     @property
     def has_anthropic(self) -> bool:
@@ -54,6 +59,12 @@ class Settings:
     @property
     def has_ntfy(self) -> bool:
         return bool(self.ntfy_topic and not self.ntfy_topic.startswith("second-ear-replace"))
+
+
+def _provider(value: str | None) -> str:
+    """`anthropic` or `gemini`. A blank or unknown value is the default, not an error."""
+    name = (value or "").strip().lower()
+    return name if name in EXPLAINER_PROVIDERS else DEFAULT_EXPLAINER_PROVIDER
 
 
 def _path(value: str | None, default: Path) -> Path:
@@ -79,4 +90,5 @@ def get_settings() -> Settings:
         orgs_path=Path(__file__).resolve().parent / "orgs.json",
         gemini_api_key=env("GEMINI_API_KEY") or None,
         gemini_model=env("GEMINI_MODEL") or DEFAULT_GEMINI_MODEL,
+        explainer_provider=_provider(env("EXPLAINER_PROVIDER")),
     )

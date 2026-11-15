@@ -106,7 +106,9 @@ Full list in `docs/SPEC.md`. The ones that shape everything:
 ## Credits
 
 Built during the hackathon with Claude Code. Libraries: FastAPI, uvicorn, faster-whisper,
-CTranslate2, transformers, PyTorch, Anthropic SDK, ntfy. Data: BothBosu/scam-dialogue on
+CTranslate2, transformers, PyTorch, Anthropic SDK, httpx, ntfy. The explainer runs on Claude
+Haiku by default and can run on Google Gemini instead (`EXPLAINER_PROVIDER=gemini`), called
+over httpx with no extra library. Data: BothBosu/scam-dialogue on
 Hugging Face (Apache-2.0, synthetic, generated with meta-llama-3-70b-instruct). Full credits
 with links land in the submission write-up.
 

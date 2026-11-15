@@ -1,15 +1,17 @@
-"""Names the scam and finds the line to say. One Haiku call per alert, 4 seconds.
+"""Names the scam and finds the line to say. One model call per alert, 4 seconds.
 
 In: the last 60 s of transcript, with every number replaced before it is sent.
 Out: scam type, one-line reason, the line to say, and the claimed organisation's
 verified number from server/orgs.json.
-It never decides an alert, never raises, and never changes the alert level.
+It never decides an alert, never raises, and never changes the alert level. The model
+is Haiku, or Gemini when EXPLAINER_PROVIDER=gemini; every rule here is the same for both.
 """
 
 from __future__ import annotations
 
 import logging
 import queue
+import re
 import threading
 import time
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
@@ -18,6 +20,7 @@ from server.config import get_settings
 from server.contracts import ExplainerResult, TranscriptChunk
 from server.explainer_checks import OK, Reply, check_reply
 from server.explainer_prompt import REDACTED, system_message, user_message
+from server.gemini_client import GEMINI_REQUEST_OPTIONS, GeminiClient
 from server.numbers import replace_number_runs
 from server.orgs import Org, load_orgs  # also imported from here by tests and callers
 
@@ -52,6 +55,18 @@ REQUEST_OPTIONS: Mapping[str, Any] = {
     "thinking": {"type": "disabled"},
     "output_config": {"effort": "low"},
 }
+GEMINI = "gemini"
+# The one shape of failure detail a client may hand to the log: an HTTP status.
+_LOG_CODE = re.compile(r"http_\d{3}")
+
+
+def _failure_code(exc: BaseException) -> str:
+    """What may be logged about a failed request: a status the client vouches for
+    (`http_503`), else the exception's class name. Never its message."""
+    code = getattr(exc, "log_code", None)
+    if isinstance(code, str) and _LOG_CODE.fullmatch(code):
+        return code
+    return type(exc).__name__
 
 
 def redact_digits(text: str, min_run: int = 6) -> str:
@@ -75,29 +90,36 @@ def _degraded() -> ExplainerResult:
 
 
 class Explainer:
-    """One Haiku call per alert, validated, degraded rather than raised.
+    """One model call per alert, validated, degraded rather than raised.
 
     `client` is an `anthropic.Anthropic`-shaped object; tests pass a fake with the
-    same `messages.create(...)` surface. `orgs` lets tests use a small fixture.
-    `last_code` says how the last call ended ("ok", "timeout", "bad_json", ...); it
-    is a fixed code and never holds anything from the call.
+    same `messages.create(...)` surface, and `GeminiClient` has it too. `orgs` lets
+    tests use a small fixture. `provider` is `anthropic` or `gemini` and defaults to
+    the setting; it picks the client, the model id and the optional request params,
+    and nothing else. `last_code` says how the last call ended ("ok", "timeout",
+    "bad_json", ...); it is a fixed code and never holds anything from the call.
     """
 
     def __init__(
         self,
-        client: "Anthropic | None" = None,
+        client: "Anthropic | GeminiClient | None" = None,
         orgs: Mapping[str, Org] | None = None,
         model: str | None = None,
         timeout_s: float = TIMEOUT_S,
         *,
         request_options: Mapping[str, Any] | None = None,
+        provider: str | None = None,
     ) -> None:
+        settings = get_settings()
         self._client = client
         self.orgs: dict[str, Org] = dict(orgs) if orgs is not None else load_orgs()
-        self.model = model or get_settings().haiku_model
+        self.provider = provider or settings.explainer_provider
+        on_gemini = self.provider == GEMINI
+        self.model = model or (settings.gemini_model if on_gemini else settings.haiku_model)
         self.timeout_s = timeout_s
-        options = REQUEST_OPTIONS if request_options is None else request_options
-        self.request_options = dict(options)
+        # Anthropic's params (thinking, output_config) never go to Gemini, and the reverse.
+        defaults = GEMINI_REQUEST_OPTIONS if on_gemini else REQUEST_OPTIONS
+        self.request_options = dict(defaults if request_options is None else request_options)
         self.last_code: str | None = None
 
     def explain(self, chunks: Sequence[TranscriptChunk], risk: float) -> ExplainerResult:
@@ -141,14 +163,20 @@ class Explainer:
             return None, code
         return self._result(reply), OK
 
-    def _resolve_client(self) -> "Anthropic | None":
+    def _resolve_client(self) -> "Anthropic | GeminiClient | None":
+        """The provider's client, made on first use. None when its key is missing."""
         if self._client is None:
             settings = get_settings()
-            if not settings.has_anthropic:
-                return None
-            from anthropic import Anthropic
+            if self.provider == GEMINI:
+                if not settings.gemini_api_key:
+                    return None
+                self._client = GeminiClient(settings.gemini_api_key)
+            else:
+                if not settings.has_anthropic:
+                    return None
+                from anthropic import Anthropic
 
-            self._client = Anthropic(api_key=settings.anthropic_api_key)
+                self._client = Anthropic(api_key=settings.anthropic_api_key)
         return self._client
 
     def _ask(self, client: Any, prompt: str, deadline: float) -> tuple[str, str]:
@@ -163,7 +191,7 @@ class Explainer:
             try:
                 box.put((OK, self._request(client, prompt)))
             except BaseException as exc:  # a dying thread would print the message
-                box.put((f"request_failed:{type(exc).__name__}", ""))
+                box.put((f"request_failed:{_failure_code(exc)}", ""))
 
         threading.Thread(target=work, name="explainer-call", daemon=True).start()
         try:
@@ -172,7 +200,7 @@ class Explainer:
             return "timeout", ""
 
     def _request(self, client: Any, prompt: str) -> str:
-        """One Messages call, no retries, capped at the budget. Returns the reply text."""
+        """One call to the model, no retries, capped at the budget. Returns the reply text."""
         with_options = getattr(client, "with_options", None)
         if callable(with_options):
             client = with_options(timeout=self.timeout_s, max_retries=0)
