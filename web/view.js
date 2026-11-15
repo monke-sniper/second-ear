@@ -88,6 +88,12 @@ export function renderTranscript(text) {
   paintTranscript();
 }
 
+/** The call is over: back to the placeholder, so no words from it stay on the screen. */
+export function clearTranscript() {
+  state = { ...state, lines: [] };
+  paintTranscript();
+}
+
 function paintTranscript() {
   const lines = state.lines.length > 0 ? state.lines : [t("transcript_empty")];
   const nodes = lines.map((line) => {

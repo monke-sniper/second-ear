@@ -167,16 +167,20 @@ async function onStart() {
   el("start").disabled = false;
 }
 
-function onStop() {
-  stopCall();
+/** The call is over, by Stop or by a dropped connection: nothing it said stays on screen. */
+function endCall(statusKey) {
+  stopCall(); // unhooks the socket first, so no late line can be drawn after the clear
+  view.clearTranscript();
   setScreen("ready");
-  view.setStatus("status_stopped");
+  view.setStatus(statusKey);
+}
+
+function onStop() {
+  endCall("status_stopped");
 }
 
 function onLost() {
-  stopCall();
-  setScreen("ready");
-  view.setStatus("status_lost");
+  endCall("status_lost");
 }
 
 function boot() {

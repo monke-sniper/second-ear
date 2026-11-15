@@ -13,6 +13,13 @@ from server.contracts import FRAME_BYTES, FRAME_MS
 
 APP_JS = (WEB_DIR / "app.js").read_text(encoding="utf-8")
 CALL_JS = (WEB_DIR / "call.js").read_text(encoding="utf-8")
+VIEW_JS = (WEB_DIR / "view.js").read_text(encoding="utf-8")
+
+
+def function_body(source: str, signature: str) -> str:
+    """The text of one top-level function, from its signature to its closing brace."""
+    assert signature in source, f"{signature} is not defined"
+    return source.split(signature, 1)[1].split("\n}\n", 1)[0]
 
 
 def js_constant(source: str, name: str) -> int:
@@ -28,6 +35,21 @@ def test_stopping_a_call_sends_a_second_of_quiet_before_the_socket_closes():
     assert js_constant(CALL_JS, "STOP_SILENCE_FRAMES") * FRAME_MS == 1000
     assert "socket.send(new ArrayBuffer(FRAME_BYTES))" in stop
     assert stop.index("socket.send(") < stop.index("socket.close()")
+
+
+def test_ending_a_call_clears_the_transcript_back_to_the_placeholder():
+    # Stop and a dropped connection both end the call. Nothing it said may stay on screen.
+    clear = function_body(VIEW_JS, "export function clearTranscript()")
+    assert "lines: []" in clear and "paintTranscript()" in clear
+    paint = function_body(VIEW_JS, "function paintTranscript()")
+    assert 'state.lines.length > 0 ? state.lines : [t("transcript_empty")]' in paint
+
+    end = function_body(APP_JS, "function endCall(statusKey)")
+    # The clear comes after stopCall(), which unhooks the socket: no late line can follow it.
+    assert end.index("stopCall()") < end.index("view.clearTranscript()")
+    assert "socket.onmessage = null" in function_body(CALL_JS, "export function stopCall()")
+    assert 'endCall("status_stopped")' in function_body(APP_JS, "function onStop()")
+    assert 'endCall("status_lost")' in function_body(APP_JS, "function onLost()")
 
 
 def test_a_server_error_is_shown_in_the_status_line():

@@ -28,7 +28,9 @@ The call is live and nothing is wrong yet.
 
 - RiskMeter updating on `risk` events, band per the meter spec.
 - Latest two transcript lines, `body` size, muted, truncated at two lines each.
-- `Stop` button replaces `Start listening`, neutral outline.
+- `Stop` button replaces `Start listening`, neutral outline. When the call ends, by `Stop`
+  or by a dropped connection, the transcript goes back to its placeholder: nothing said on
+  the call stays on the screen.
 - Status line: `Listening.` — never a spinner.
 
 Acceptance: the score changing does not move the transcript block; no layout shift.
