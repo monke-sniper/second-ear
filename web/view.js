@@ -19,7 +19,8 @@ const BANDS = [
 const NEUTRAL = { name: "neutral", shape: CIRCLE, word: "meter_real_call" };
 const TRANSCRIPT_LINES = 2;
 const SAFE_EXIT_MAX_LINES = 3;
-const SMALL_LINE = "safe-exit__line--small";
+// The sizes the line to say steps down through, largest first (safe-exit-card.md).
+const LINE_STEPS = ["safe-exit__line--title", "safe-exit__line--small"];
 
 const START = { score: 0, lines: [], sheet: null, explainer: null, realCall: false };
 let state = START;
@@ -138,11 +139,16 @@ function paintCards() {
   line.textContent = info !== null && info.safe_exit_line.trim() !== ""
     ? info.safe_exit_line
     : t("safe_exit_default");
-  // Never truncated: a line that runs past three lines steps down once, to 28 px.
-  line.classList.remove(SMALL_LINE);
-  const lineHeight = parseFloat(getComputedStyle(line).lineHeight);
-  if (line.clientHeight > lineHeight * SAFE_EXIT_MAX_LINES + 1) {
-    line.classList.add(SMALL_LINE);
+  // Never truncated: a line that runs past three lines steps down, to title size and
+  // then to 28 px, and stops at the first size that fits.
+  line.classList.remove(...LINE_STEPS);
+  for (const step of LINE_STEPS) {
+    const lineHeight = parseFloat(getComputedStyle(line).lineHeight);
+    if (line.clientHeight <= lineHeight * SAFE_EXIT_MAX_LINES + 1) {
+      break;
+    }
+    line.classList.remove(...LINE_STEPS);
+    line.classList.add(step);
   }
   paintOfficial(info);
 }

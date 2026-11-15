@@ -7,9 +7,12 @@ scared, hard of hearing, and holding a phone in one hand.
 
 What the person sees before anything is happening.
 
-- Title `Second Ear`, one line under it: `Put the call on speaker next to this phone.`
+- Title `Second Ear`, one line under it: `Put the call on speaker next to this phone.` The
+  name is the quiet one (`label` size, muted); the line under it is the loud one (`body`
+  size, 600 weight, ink), on every screen.
 - RiskMeter at 0, word `Calm`.
 - Primary button `Start listening` (56 px, full width). Secondary text button `Demo mode`.
+  The buttons sit at the bottom of the screen, under the thumb; `Stop` takes the same place.
 - Empty transcript area with the placeholder `The call will appear here.`
 - First run only: a line explaining the mic permission prompt, no modal.
 
@@ -68,12 +71,22 @@ Acceptance: one tap gets here; nothing animates for more than 180 ms.
 
 The judges' view (`/?demo=1`), built for a two-minute walkthrough.
 
-- Recording card: file name, `Play` / `Replay`, and the label `Recorded call, replayed through
-  the same pipeline.`
+- First thing on the console, in a bordered notice: `Nothing here is live. The mic is off in
+  demo mode.` It sits above the reach of the alert sheet. With the banner and the scam sheet
+  both up, its second row can be covered.
+- Recording card: file name and `Play` / `Replay` on one row, and under them the label
+  `Recorded call, replayed through the same pipeline.`
 - Transcript column and RiskMeter side by side (still inside 360 px, stacked).
-- A thin timeline under the meter with a marker where the first alert fired and where the
-  money ask is in the recording.
-- One line at the bottom: `Nothing here is live. The mic is off in demo mode.`
+- A 12 px timeline under the meter with a marker where the first alert fired and where the
+  money ask is in the recording. The marker is a bar with a pointer on top, not a colour
+  alone.
+
+## Wide screens
+
+From 600 px wide, the column is one 360 × 640 panel (`surface`, `radius.lg`,
+`elevation.sheet`) on a `neutral.base` backdrop. The DangerBanner and the scrim stay inside
+the panel; neither spans the window. This is what a screen recording shows. On a phone
+nothing changes.
 
 Acceptance: plays `eval/calls/demo_scam.wav` end to end after a page reload; visible proof the
 mic is off.

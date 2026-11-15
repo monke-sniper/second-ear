@@ -8,12 +8,14 @@ a metre away. It never demands attention; the AlertSheet does that.
 ```
 ┌──────────────────────────────┐
 │  ●  Calm                 12  │   word + shape on the left, score on the right
-│  ▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░  │   bar, 8px tall, full width of the card
+│  ▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░  │   bar, 12px tall, full width of the card
 └──────────────────────────────┘
 ```
 
-- Word: `Calm` / `Watch` / `Scam` — `label` size, 600 weight.
-- Shape: `●` calm, `▲` watch, `■` scam, 16 px, before the word.
+- Word: `Calm` / `Watch` / `Scam` — `body` size, 600 weight.
+- Shape: `●` calm, `▲` watch, `■` scam, 20 px, before the word. Drawn as a solid shape in
+  the band's `base`, not typed: a font's `●` is a speck next to its `■`, and the shape is
+  the signal that is not colour.
 - Score: integer 0–100, `title` size, tabular figures, right-aligned.
 - Bar: track `color.neutral.soft`, fill uses the band's `base`.
 
@@ -30,7 +32,7 @@ shows whatever `risk` event arrived.
 
 ## Sizes
 
-Full width of the content column, min height 72 px. Bar 8 px, radius `pill`. Number never
+Full width of the content column, min height 72 px. Bar 12 px, radius `pill`. Number never
 smaller than 28 px.
 
 ## Accessibility
