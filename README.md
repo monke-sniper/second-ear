@@ -88,9 +88,10 @@ some real calls; the Results section says which.
   Looking up the first 6 words of a test dialogue among the training conversations, with no
   model at all, gives the right label for 295 of 320 test dialogues. With the greeting
   removed it is still 289 of 320. So we retrained: the greeting is removed from every row,
-  and every training example gets a copy with its first 5 to 15 words cut off. After that
-  the model scores the same on the test split with the greeting put back (F1 0.9969, n=320)
-  and with the first 12 words removed (F1 0.9969, n=320).
+  and every training example long enough (all but 22 of 5,750) gets a copy with its first
+  5 to 15 words cut off. After that the model scores the same on the test split with the
+  greeting put back (F1 0.9969, n=320) and with the first 12 words removed (F1 0.9969,
+  n=320).
 
 ## How it works
 
@@ -149,7 +150,7 @@ keyword list flagged 1.
 (n=320). On the held-out set it is 0.8113 (n=100). The first number is high because the
 dialogues are templated: 298 of the 320 test dialogues share their first 12 words with a
 training dialogue, so the test looks a lot like the training data. We treat the held-out
-number as the real one.
+number as the more honest of the two; it is still written text, not live calls.
 
 **Recorded calls, through the whole system (Whisper, model and rules).**
 
