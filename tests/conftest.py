@@ -15,8 +15,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from server.app import create_app
-from server.config import get_settings
-from server.explainer import Explainer
+from server.config import FirebaseSettings, get_settings
+from server.explainer import TIMEOUT_S, Explainer
 from server.live import Services
 from server.notify import NtfyNotifier
 from server.scorer import StubScorer
@@ -32,12 +32,14 @@ class Harness:
     anthropic: FakeAnthropic = field(default_factory=FakeAnthropic)
     http: FakeHttp = field(default_factory=FakeHttp)
     calls_dir: Path | None = None  # where /demo/audio looks; None is the real folder
+    firebase: FirebaseSettings | None = None  # set, the page is asked to explain an alert
+    explainer_timeout_s: float = TIMEOUT_S
 
     def notifier(self) -> NtfyNotifier:
         return NtfyNotifier(topic="test-topic", base_url="https://ntfy.test", client=self.http)
 
     def explainer(self) -> Explainer:
-        return Explainer(client=self.anthropic, orgs=FAKE_ORGS)
+        return Explainer(client=self.anthropic, orgs=FAKE_ORGS, timeout_s=self.explainer_timeout_s)
 
     def client(self) -> TestClient:
         return TestClient(
@@ -47,6 +49,7 @@ class Harness:
                 explainer=self.explainer(),
                 notifier_factory=self.notifier,
                 calls_dir=self.calls_dir,
+                firebase=self.firebase,
             )
         )
 
@@ -57,6 +60,7 @@ class Harness:
             scorer=self.scorer,
             explainer=self.explainer(),
             notifier_factory=self.notifier,
+            ask_page=self.firebase is not None,
         )
 
 
@@ -73,9 +77,16 @@ def no_real_model_keys(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
     Both provider keys are blanked and the provider is the default for every test, so an
     Explainer built without a client finds no key and makes no request. A test that needs
-    a key or the other provider sets it itself.
+    a key or the other provider sets it itself. The Firebase values are blanked as well,
+    so an app built without `firebase=` never asks the page to explain.
     """
-    for name in ("ANTHROPIC_API_KEY", "GEMINI_API_KEY"):
+    for name in (
+        "ANTHROPIC_API_KEY",
+        "GEMINI_API_KEY",
+        "FIREBASE_API_KEY",
+        "FIREBASE_PROJECT_ID",
+        "FIREBASE_APP_ID",
+    ):
         monkeypatch.setenv(name, "")
     monkeypatch.setenv("EXPLAINER_PROVIDER", "anthropic")
     get_settings.cache_clear()

@@ -11,6 +11,7 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import Callable
 
 from dotenv import load_dotenv
 
@@ -29,8 +30,26 @@ DEFAULT_GEMINI_MODEL = "gemini-3.6-flash"
 # Which model the explainer asks. Anything else in .env counts as the default.
 EXPLAINER_PROVIDERS = ("anthropic", "gemini")
 DEFAULT_EXPLAINER_PROVIDER = "anthropic"
+# The cloud model the page falls back to when Chrome has no on-device model. It is the
+# Firebase JS SDK's own default for hybrid inference (read from SDK 13.4.0 on Nov 23).
+DEFAULT_FIREBASE_MODEL = "gemini-3.5-flash-lite"
 
 load_dotenv(ROOT / ".env")
+
+
+@dataclass(frozen=True)
+class FirebaseSettings:
+    """The Firebase web app the page signs in to for Firebase AI Logic.
+
+    These three values are a web app's public config, the ones the Firebase console
+    shows for pasting into a page. App Check is what guards the project, not their
+    secrecy. They still live in .env so that a clone is tied to nobody's project.
+    """
+
+    api_key: str
+    project_id: str
+    app_id: str
+    model: str = DEFAULT_FIREBASE_MODEL
 
 
 @dataclass(frozen=True)
@@ -47,6 +66,9 @@ class Settings:
     gemini_api_key: str | None
     gemini_model: str
     explainer_provider: str = DEFAULT_EXPLAINER_PROVIDER
+    # None unless .env names a Firebase web app. Set, the page makes the explainer's
+    # model call through Firebase AI Logic while a page is connected.
+    firebase: FirebaseSettings | None = None
 
     @property
     def has_anthropic(self) -> bool:
@@ -65,6 +87,18 @@ def _provider(value: str | None) -> str:
     """`anthropic` or `gemini`. A blank or unknown value is the default, not an error."""
     name = (value or "").strip().lower()
     return name if name in EXPLAINER_PROVIDERS else DEFAULT_EXPLAINER_PROVIDER
+
+
+def _firebase(env: Callable[..., str | None]) -> FirebaseSettings | None:
+    """The Firebase web app from the environment, or None when any of the three is missing."""
+    api_key, project_id, app_id = (
+        (env(name) or "").strip()
+        for name in ("FIREBASE_API_KEY", "FIREBASE_PROJECT_ID", "FIREBASE_APP_ID")
+    )
+    if not (api_key and project_id and app_id):
+        return None
+    model = (env("FIREBASE_AI_MODEL") or "").strip() or DEFAULT_FIREBASE_MODEL
+    return FirebaseSettings(api_key=api_key, project_id=project_id, app_id=app_id, model=model)
 
 
 def _path(value: str | None, default: Path) -> Path:
@@ -91,4 +125,5 @@ def get_settings() -> Settings:
         gemini_api_key=env("GEMINI_API_KEY") or None,
         gemini_model=env("GEMINI_MODEL") or DEFAULT_GEMINI_MODEL,
         explainer_provider=_provider(env("EXPLAINER_PROVIDER")),
+        firebase=_firebase(env),
     )

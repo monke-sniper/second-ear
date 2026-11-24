@@ -146,6 +146,16 @@ def check_model_dir(settings: Settings) -> bool:
 
 
 def check_env(settings: Settings) -> bool:
+    if settings.firebase is not None:
+        _pass(
+            f"Firebase AI Logic set (project {settings.firebase.project_id}, cloud model "
+            f"{settings.firebase.model}) — the page makes the explainer's model call"
+        )
+    else:
+        _warn(
+            "FIREBASE_API_KEY / FIREBASE_PROJECT_ID / FIREBASE_APP_ID not all set — the page "
+            "is not asked; the server's own explainer answers"
+        )
     if settings.explainer_provider == "gemini":
         if settings.has_gemini:
             _pass(f"EXPLAINER_PROVIDER=gemini, GEMINI_API_KEY set (model {settings.gemini_model})")

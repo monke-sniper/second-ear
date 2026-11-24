@@ -2,12 +2,14 @@
  * Second Ear — browser client entry point.
  * Owns: every word on the screen (one dictionary), the routing of server events to
  * the view, and the Start / Stop / "This is a real call" / Demo buttons.
- * It does not score, decide or explain: the server does. Audio lives in call.js,
- * drawing in view.js, the demo console in demo.js.
+ * It does not score, decide or check anything: the server does. Audio lives in call.js,
+ * drawing in view.js, the demo console in demo.js, and the explainer's model call
+ * (Firebase AI Logic, when it is set up) in explainer.js.
  */
 
-import { micSupported, startMicCall, stopCall } from "./call.js";
+import { callSocket, micSupported, sendMessage, startMicCall, stopCall } from "./call.js";
 import { initDemo } from "./demo.js";
+import { answer, loadExplainer, restExplainer, warmExplainer } from "./explainer.js";
 import * as view from "./view.js";
 
 /*
@@ -49,6 +51,8 @@ export const COPY = {
     call_back: "CALL BACK",
     call_back_fallback: "Use the number on your card or your last statement.",
     call_number_label: "Call {org} at {number}",
+    explained_on_device: "Written on this device.",
+    explained_in_cloud: "Written by a cloud model.",
     real_call: "This is a real call",
     danger_title: "Do not read that number out",
     danger_body: "Hang up, then call back on a number you know.",
@@ -77,8 +81,13 @@ const MIC_ERRORS = {
   OverconstrainedError: "status_no_mic",
   MicEndedError: "status_mic_stopped",
 };
+// Where this page's model ran, as the copy key that says so.
+const SOURCE_COPY = { on_device: "explained_on_device", in_cloud: "explained_in_cloud" };
 
 const el = (id) => document.getElementById(id);
+
+/** The last alert this page's model answered: { t_s, source }. Null on a new call. */
+let pageAnswer = null;
 
 /** The copy for `key`, with `{name}` slots filled from `values`. */
 export function t(key, values = {}) {
@@ -106,8 +115,11 @@ export function handleServerEvent(event) {
     case "alert":
       view.renderAlert(event.level);
       return;
+    case "explain":
+      onExplain(event);
+      return;
     case "explainer":
-      view.renderExplainer(event);
+      view.renderExplainer(event, sourceKey(event));
       return;
     case "danger": // the event carries a count for eval; the screen does not show it
       view.renderDanger();
@@ -118,6 +130,36 @@ export function handleServerEvent(event) {
     default:
       return;
   }
+}
+
+/**
+ * The server asks this page to make the explainer's model call (explainer.js): Gemini
+ * Nano on this device, or cloud Gemini. The raw answer goes back for the server to
+ * check; what reaches the screen is the server's `explainer` event, as always.
+ */
+async function onExplain(event) {
+  const socket = callSocket(); // the call that asked
+  const { text, source } = await answer(event.prompt);
+  if (sendMessage(socket, { type: "explained", id: event.id, text, source })) {
+    pageAnswer = { t_s: event.t_s, source };
+  }
+}
+
+/** The copy key for where the answer to `event`'s alert was written, or null when this
+ *  page's model did not write it. */
+function sourceKey(event) {
+  if (pageAnswer === null || event.degraded === true || event.t_s !== pageAnswer.t_s) {
+    return null;
+  }
+  return SOURCE_COPY[pageAnswer.source] || null;
+}
+
+/** A call or a replay begins: a clean screen, and the on-device model woken up. It runs
+ *  inside the press that started it, which Chrome asks for before a model download. */
+function beginCall() {
+  pageAnswer = null;
+  view.resetView();
+  warmExplainer();
 }
 
 /** Which controls belong to which screen (docs/design/screens.md). */
@@ -155,7 +197,7 @@ async function onStart() {
     return;
   }
   el("start").disabled = true;
-  view.resetView();
+  beginCall();
   view.setStatus("status_starting");
   try {
     await startMicCall({ onEvent: handleServerEvent, onClose: onLost, onMicEnded });
@@ -173,6 +215,7 @@ async function onStart() {
  *  stays on screen, and no alert sheet is left covering the Start button. */
 function endCall(statusKey) {
   stopCall(); // unhooks the socket first, so no late line can be drawn after the clear
+  restExplainer();
   const sheetWasOpen = view.closeAlert(); // the page behind an open sheet is inert
   view.clearTranscript();
   setScreen("ready");
@@ -201,9 +244,10 @@ function boot() {
   el("stop").addEventListener("click", onStop);
   el("real-call").addEventListener("click", view.markRealCall);
   el("demo").addEventListener("click", () => location.assign(`?${DEMO_PARAM}=1`));
+  loadExplainer(); // not waited for: the page is usable before Firebase is, or without it
   if (new URLSearchParams(location.search).get(DEMO_PARAM) === "1") {
     setScreen("demo");
-    initDemo({ onEvent: handleServerEvent, onReset: view.resetView, setStatus: view.setStatus, t });
+    initDemo({ onEvent: handleServerEvent, onReset: beginCall, setStatus: view.setStatus, t });
     return;
   }
   setScreen("ready");

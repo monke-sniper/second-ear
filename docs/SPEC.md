@@ -16,7 +16,9 @@ Phone A plays the call on speaker. A laptop nearby has this app open; its mic he
 5. Turn scores into an alert level: `none` / `caution` / `scam`.
 6. Count spoken digits in a 10 s window and raise a code warning when gated on.
 7. On a new alert, ask Haiku (4 s budget) for the scam name, the line to say, and the claimed
-   organisation's official number.
+   organisation's official number. With Firebase set up, the page makes that model call
+   instead, through Firebase AI Logic: Gemini Nano on the device, cloud Gemini when Chrome
+   has none (§5).
 8. Send at most one ntfy push per alert type per call.
 9. Render it on a 360 px-wide screen, designed for someone who cannot easily read small print.
 
@@ -59,6 +61,13 @@ Client → server:
   state, and push flags. Resets `t_s` and the ack `total` to 0. It sends no reply. An
   explainer answer still on its way for the old call is dropped, with the scam push that
   would have followed it.
+- **text `{"type": "explained", "id", "text", "source"}`**: the page's answer to an
+  `explain` request (below). `text` is the model's raw reply, 4 000 characters at most;
+  `source` is `on_device`, `in_cloud`, or `none` with an empty `text` when the page could
+  not ask a model. The shape is strict: a missing or extra field, an `id` that is not a
+  whole number, or any other `source` gets the `error` `explained message not understood`.
+  An answer nobody is waiting for (an unknown `id`, one that ran out of time, one from
+  before a reset) is dropped and gets no reply.
 - **any other text**: an `error` naming the message's `type` (`unknown` if it is not a
   plain lowercase name). The client's text is never copied into the reply.
 
@@ -72,6 +81,7 @@ Server → client, one JSON object per event. Canonical shapes live in `server/c
 | `danger` | `digit_count`, `t_s` |
 | `alert` | `level`, `t_s`, `trigger`, `score` |
 | `explainer` | `t_s`, `scam_type`, `reason`, `safe_exit_line`, `org`, `org_name`, `official_number`, `degraded` |
+| `explain` | `id`, `t_s`, `prompt` |
 | `error` | `detail` |
 
 `t_s` is seconds since the call started. Nothing on the wire ever carries a raw digit run.
@@ -81,6 +91,13 @@ screen while the scammer is still talking. `explainer` follows within its 4 s bu
 enriches the open alert; a missing or degraded `explainer` changes nothing about the level.
 An answer for an alert that a higher alert has since replaced is not sent: a slow `caution`
 answer never arrives after the `scam` alert, so it cannot overwrite the scam answer.
+
+`explain` is sent only when Firebase is set up (§5), after the `alert` it belongs to and
+stamped with that alert's `t_s`. It asks the page to make the explainer's model call.
+`prompt` is the explainer's user message: the last 60 s of the call with every number
+replaced (§5), so it carries no digit. The page answers with `explained`; the server checks
+that answer and sends the `explainer` event as it would for any model. A page that does
+not answer inside the 4 s budget costs nothing but the answer: the generic line goes out.
 
 What is sent, and when:
 
@@ -115,6 +132,10 @@ HTTP:
 - `GET /demo/audio` → the recording demo mode replays: `eval/calls/demo_scam.wav`, or
   `eval/calls/tts_scam.wav` if that is missing, as `audio/wav` with the file name in
   `Content-Disposition`. `404` when neither exists. No other file in that folder is served.
+- `GET /explainer/config` → what the page needs for the explainer's model call (§5):
+  `{"enabled": true, "firebase": {"apiKey", "projectId", "appId"}, "model", "system",
+  "reply_schema", "budget_ms"}`, or `{"enabled": false}` when `.env` names no Firebase web
+  app. Sent with `Cache-Control: no-store`.
 - `GET /` → `web/index.html`; the rest of `web/` is served statically.
 
 ## 4. Module contracts
@@ -183,6 +204,16 @@ Signatures are listed in the code and are not to be reshaped without updating
 - **`explainer.Explainer.explain(transcript, risk) -> ExplainerResult`** — never raises,
   never changes the alert level, degrades to the generic line, and returns within the 4 s
   budget even when the request hangs (the request is abandoned, not awaited).
+- **`explainer.Explainer.from_reply(text) -> ExplainerResult`** — the same checks and the
+  same degraded result, for an answer the page got from its own model. It asks no model
+  and never raises. `prompt_text(chunks)` is the redacted user message the page is sent,
+  or `None` when nothing was said; `degraded(code)` is the generic line under one of the
+  caller's fixed codes.
+- **`page_explainer.PageDesk`** — the answers one connection is waiting for from its page,
+  by request id: `expect()` starts a request, `settle(answer)` hands it the page's answer
+  and says whether anyone was waiting, `abandon()` ends every open request on a reset or
+  a hang-up. `parse_explained(text)` reads the page's message or returns `None`;
+  `page_config(...)` builds the answer to `GET /explainer/config`.
 - **`notify.NtfyNotifier.send_scam(...)` / `send_code()`** — one attempt each per call.
   Returns `False` on a repeat, a failed POST or a disabled topic; a failed POST is not
   retried. Publishes JSON to the ntfy root URL, so the topic is never part of a URL.
@@ -243,6 +274,28 @@ Signatures are listed in the code and are not to be reshaped without updating
   or an exception class name, and the error body is never read.
 - The provider never touches detection. The scorer, the alert rules and the digit warning
   do not know which model the explainer asks.
+- **The page's model (Firebase AI Logic).** When `.env` has `FIREBASE_API_KEY`,
+  `FIREBASE_PROJECT_ID` and `FIREBASE_APP_ID`, the model call for an alert is made by the
+  page, for as long as a page is connected. The server sends `explain` with the redacted
+  prompt (§3). The page asks through the Firebase JS SDK in hybrid mode,
+  `PREFER_ON_DEVICE`: Gemini Nano in Chrome when the on-device model is there, and the
+  cloud model `FIREBASE_AI_MODEL` when it is not. It sends the raw reply back as
+  `explained`, and the server runs every check in this section on it. Redaction before
+  the request, the 4 s budget (counted from the moment `explain` is sent), validation and
+  the degraded result are the same as for Haiku.
+- What differs for the page's model: its reply is held to a JSON schema, in the cloud and
+  on the device, and a schema cannot say null on every model. So in its schema and its
+  instructions "no organisation" is the word `none`, and the check reads `none` as null
+  for this answer only. From Haiku or the server's Gemini, `none` is still an unknown
+  organisation.
+- No model call from the server while the page is asked, and no second try: a page that
+  is silent for 4 s, says it could not ask (`source` `none`), or sends a reply that fails
+  a check gets the generic line. `EXPLAINER_PROVIDER` still picks the server's model, which
+  answers when no page can: `/simulate`, an alert raised after the hang-up, and any run
+  without Firebase.
+- The page logs nothing and stores nothing from a call. The server logs where the page's
+  model ran (`on_device` or `in_cloud`) and, for a failure, one of `page_timeout`,
+  `page_gone`, `page_no_answer` or a failed check's name.
 
 ## 6. Data and training
 
@@ -319,6 +372,13 @@ Known limits of this test split. The training notebook recounts each one and wri
 - Transcripts live in memory. Nothing containing digits is logged.
 - The ntfy topic is secret, lives in `.env`, never in the repo.
 - Demo recordings need consent from everyone audible; the README says so.
+- With Firebase set up, the explainer's prompt (redacted, §5) goes from the server to the
+  page on the same machine. When Chrome's on-device model answers, that text goes no
+  further. When it does not, the same text goes to Google's cloud Gemini through Firebase
+  AI Logic, under Google's terms. The sheet says which of the two wrote the line.
+- The Firebase web config in `.env` is a web app's public config, not a secret; App Check
+  guards the project. The App Check debug token is the secret: it lives in the browser
+  that made it and in the Firebase project, never in the repo.
 
 ## 8. Eval outputs
 
@@ -436,6 +496,44 @@ Added after the Nov 15 review:
 - **The promise is `label` size.** `Second Ear never saves your calls.` was `caption`
   size (15 px), under the 18 px floor in `tokens.json`.
 
+Added on Nov 23, for Firebase AI Logic (approved by the owner the same day: two new
+socket messages, and the Firebase JS SDK as a browser dependency):
+
+- **The explainer's model call can run in the page.** §5 has the rule. The server keeps
+  everything that is a rule: redaction, the budget, validation, the org lookup, the push.
+  The page only makes the call and hands back raw text, so a third provider added no
+  second copy of any check.
+- **Wire shapes added, none changed.** `explain` (server to page), `explained` (page to
+  server) and `GET /explainer/config`. The `explainer` event is as it was: the page pairs
+  its own answer with the `explainer` event by `t_s` to know where the line was written.
+- **The SDK comes from Google's CDN at a pinned version** (`13.4.0`, in
+  `web/explainer.js`), loaded with `import()` only when `/explainer/config` says Firebase
+  is set up. No build step, and nothing new in `requirements.txt`. A page that cannot
+  load it answers every `explain` with `source` `none`, and the generic line shows.
+- **On-device first.** `PREFER_ON_DEVICE`: the text stays on the device whenever Chrome
+  has the model. The cloud model is the SDK's own hybrid default, `gemini-3.5-flash-lite`
+  (read from SDK 13.4.0), and `FIREBASE_AI_MODEL` changes it. No thinking setting and no
+  output cap are sent: neither was checked against that model.
+- **The on-device model is woken by the press that starts a call.** Chrome starts the
+  model's download only after a press, so Start and the demo console's Play call the
+  SDK's `initializeDeviceModel()`. When the model is already there, the page also holds
+  one idle session until the call ends, so the first alert does not pay for loading it.
+- **App Check is the debug provider.** Firebase AI Logic requires App Check, and this
+  page is only ever served from this machine (§3), so it sets
+  `FIREBASE_APPCHECK_DEBUG_TOKEN` on `localhost` and `127.0.0.1` and has no production
+  provider. Cloud answers need that token registered in the Firebase project; on-device
+  answers need no token.
+- **An answer never crosses calls.** Request ids restart with each connection, so the
+  page keeps the socket that asked and sends its answer only if that socket is still the
+  call in progress.
+- **New copy.** `Written on this device.` and `Written by a cloud model.`, one line under
+  the sheet's button, shown only for an answer the page's model wrote and the server
+  accepted. It is last in the sheet so that it can never push the line to say, the number
+  or the button down. "On this device" is said only when the SDK reports `on_device`.
+- **Not built.** The demo console's text replay still goes through `/simulate`, so it
+  uses the server's explainer and never the page's model. A recording replayed in the
+  demo console, and a live call, do use it.
+
 Added in Phase 5:
 
 - **The client is five small modules, no build step.** `app.js` holds the one copy
@@ -535,6 +633,14 @@ Added in Phase 3:
   `Origin` host only (`localhost` or `127.0.0.1`, §3), not the scheme or the port. A page
   served by another program on this machine (`http://localhost:3000`) can open the socket;
   a page on any other site cannot.
+- Not measured: how long the page's model takes. The 4 s budget (§2) was set for Haiku.
+  Whether Gemini Nano on this laptop, or the cloud fallback, answers inside it has not
+  been timed, because no Firebase project was connected when the page path was built
+  (Nov 23). Until it is timed, a `page_timeout` in the server log is the sign that an
+  answer came too late. The budget is a §2 number and is not changed without the owner.
+- Not checked in a browser: the on-device path. The Firebase calls in `web/explainer.js`
+  follow the Firebase AI Logic docs and SDK 13.4.0's source, and the tests pin that the
+  code is there; none of them runs Chrome's model.
 - Kaggle API token for the cross-dataset test (Sunday only).
 - A recorded demo call at `eval/calls/demo_scam.wav` and a matching row in `labels.csv`.
 - The design system in `docs/design/` was authored at scaffold time, not sourced from a

@@ -47,7 +47,7 @@ that looks like a scam.
 out loud to end the call. First person. No digits, no numbers, no phone numbers, and no \
 mention of any app.
 - "claimed_org": the id of the organisation the caller claims to be from, taken from the \
-list below, or null if they claim none of them.
+list below, or {no_org} if they claim none of them.
 
 Organisations (id: name):
 {org_lines}"""
@@ -120,10 +120,16 @@ def redact_outbound(text: str) -> str:
     return _WRITTEN_DIGITS.sub(REDACTED, spoken_gone)
 
 
-def system_message(scam_types: Sequence[str], org_names: Mapping[str, str]) -> str:
-    """The fixed instructions, with the scam types and `{org id: name}` filled in."""
+def system_message(
+    scam_types: Sequence[str], org_names: Mapping[str, str], no_org: str = "null"
+) -> str:
+    """The fixed instructions, with the scam types and `{org id: name}` filled in.
+
+    `no_org` is how the reply says "no organisation", as it is written in JSON: `null`,
+    or a quoted word for a model whose answer is held to a schema that has no null.
+    """
     org_lines = "\n".join(f"- {org_id}: {name}" for org_id, name in org_names.items())
-    return _SYSTEM.format(scam_types=", ".join(scam_types), org_lines=org_lines)
+    return _SYSTEM.format(scam_types=", ".join(scam_types), org_lines=org_lines, no_org=no_org)
 
 
 def user_message(

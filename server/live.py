@@ -1,6 +1,6 @@
 """One live call over the audio socket: PCM frames in, events out.
 
-In: the browser's binary frames and its `reset` message.
+In: the browser's binary frames, its `reset` message, and its `explained` answers.
 Out: an ack per frame, then transcript, risk, alert and danger events, then the
 explainer's late answer. It owns the connection's send lock and background tasks.
 It does not hold any rule: those live in pipeline.py and the modules it calls.
@@ -25,11 +25,20 @@ from server.contracts import (
     AlertLevel,
     AudioAck,
     ErrorEvent,
+    ExplainerResult,
+    ExplainRequest,
     TranscriptChunk,
     WireModel,
 )
 from server.explainer import Explainer
 from server.notify import NtfyNotifier
+from server.page_explainer import (
+    PAGE_GONE,
+    PAGE_NO_ANSWER,
+    PAGE_TIMEOUT,
+    PageDesk,
+    parse_explained,
+)
 from server.pipeline import CallSession, Step, explainer_event
 from server.scorer import RiskScorer
 from server.stt import pcm_duration_s
@@ -37,9 +46,14 @@ from server.stt import pcm_duration_s
 log = logging.getLogger("second_ear.live")
 
 RESET = "reset"
+EXPLAINED = "explained"
 UNKNOWN_EVENT = "unknown"
 # What the client is told, once per call, when a chunk could not be read.
 UNREAD_DETAIL = "could not process that audio"
+# What the page is told when its `explained` message is not the shape in contracts.py.
+EXPLAINED_DETAIL = "explained message not understood"
+# The `source` of an answer from a page that could not ask a model.
+NO_SOURCE = "none"
 # docs/SPEC.md §2. Mid-call a chunk waits for 2 s and a pause. When the call ends no
 # more audio is coming, so what is left is heard from half a second up.
 END_TAIL_MIN_S = 0.5
@@ -59,12 +73,17 @@ class Transcriber(Protocol):
 
 @dataclass(frozen=True)
 class Services:
-    """The long-lived parts every connection shares. A notifier is made per call."""
+    """The long-lived parts every connection shares. A notifier is made per call.
+
+    `ask_page` is true when Firebase is set up: the page then makes the explainer's
+    model call (Firebase AI Logic) while it is connected, and `explainer` checks it.
+    """
 
     transcriber: Transcriber
     scorer: RiskScorer
     explainer: Explainer
     notifier_factory: Callable[[], NtfyNotifier]
+    ask_page: bool = False
 
 
 def event_type(text: str) -> str:
@@ -97,6 +116,7 @@ class LiveCall:
         self.session = CallSession(services.scorer)
         self.chunker = AudioChunker()
         self.notifier = services.notifier_factory()
+        self.page = PageDesk()
         self.total = 0
         self._send_lock = asyncio.Lock()
         self._hearing = threading.Lock()
@@ -120,6 +140,7 @@ class LiveCall:
             pass
         finally:
             self._open = False
+            self.page.abandon()  # the page has gone; nothing it was asked can come back
             log.info("audio socket closed after %d bytes", self.total)
             # A hang-up is not a reset: the last words are still heard, and a push on
             # its way still goes out. The tail is a task of its own, started before
@@ -146,12 +167,22 @@ class LiveCall:
         if kind == RESET:
             self._reset()
             return
+        if kind == EXPLAINED:
+            answer = parse_explained(text)
+            if answer is None:
+                await self._send(ErrorEvent(detail=EXPLAINED_DETAIL))
+                return
+            # An answer nobody is waiting for (late, or for an id never asked) is dropped.
+            self.page.settle(answer)
+            return
         await self._send(ErrorEvent(detail=f"event not handled: {kind}"))
 
     def _reset(self) -> None:
-        """A new call on the same socket. The old call's notifier is left behind."""
+        """A new call on the same socket. The old call's notifier is left behind, and
+        so is whatever the page was still being asked about it."""
         self.session.reset()
         self.chunker.reset()
+        self.page.abandon()
         self.notifier = self.services.notifier_factory()
         self.total = 0
         self._unread_said = False
@@ -224,9 +255,8 @@ class LiveCall:
         notifier: NtfyNotifier,
     ) -> None:
         """After the alert is out: name the scam, then tell the family if it is one."""
-        explain = self.services.explainer.explain
         try:
-            result = await asyncio.to_thread(explain, chunks, alert.score)
+            result = await self._explain(alert, chunks)
             if generation != self.session.generation:
                 return  # a reset started a new call; this answer belongs to the old one
             if self.session.outranked(alert.level):
@@ -239,6 +269,46 @@ class LiveCall:
                 await asyncio.to_thread(notifier.send_scam, result)
         except Exception as exc:  # the alert is already on screen and must stay there
             log.warning("explainer task failed: %s", type(exc).__name__)
+
+    async def _explain(
+        self, alert: AlertEvent, chunks: Sequence[TranscriptChunk]
+    ) -> ExplainerResult:
+        """The explainer's read of the call: from the page's model while Firebase is set
+        up and a page is there to ask, from the server's own model otherwise."""
+        if self.services.ask_page and self._open:
+            return await self._ask_page(alert, chunks)
+        return await asyncio.to_thread(self.services.explainer.explain, chunks, alert.score)
+
+    async def _ask_page(
+        self, alert: AlertEvent, chunks: Sequence[TranscriptChunk]
+    ) -> ExplainerResult:
+        """Send the page the redacted prompt and wait, inside the budget, for its answer.
+
+        The page asks Gemini Nano on the device, or cloud Gemini when Chrome has none
+        (Firebase AI Logic hybrid inference). What it sends back is checked like any
+        other reply; no answer in time is the generic line. The alert never waits.
+        """
+        explainer = self.services.explainer
+        prompt = explainer.prompt_text(chunks)
+        if prompt is None:
+            return explainer.degraded("empty_transcript")
+        request_id, waiting = self.page.expect()
+        try:
+            await self._send(ExplainRequest(id=request_id, t_s=alert.t_s, prompt=prompt))
+            if not self._open:  # it left as the request went out
+                return explainer.degraded(PAGE_GONE)
+            answer = await asyncio.wait_for(waiting, timeout=explainer.timeout_s)
+        except asyncio.TimeoutError:
+            return explainer.degraded(PAGE_TIMEOUT)
+        finally:
+            self.page.close(request_id)
+        if answer is None:
+            return explainer.degraded(PAGE_GONE)
+        if answer.source == NO_SOURCE:
+            return explainer.degraded(PAGE_NO_ANSWER)
+        # Where the model ran is one of two fixed words, so it is safe in a log line.
+        log.info("explainer answered by the page: %s", answer.source)
+        return explainer.from_reply(answer.text)
 
     async def _push_code(self, notifier: NtfyNotifier) -> None:
         try:

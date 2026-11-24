@@ -50,6 +50,11 @@ The explainer can arrive late and update the safe-exit line, the scam type and t
 number while the sheet is open. A late failure leaves the generic line; the sheet never closes
 because the API failed.
 
+When the page's own model wrote the line (Firebase AI Logic, `docs/SPEC.md` §5), one `label`
+size line in `muted` sits under the button: `Written on this device.` or `Written by a cloud
+model.` It is the last thing in the sheet, so it never moves the cards or the button, and it
+is not shown for the default line or for an answer the server's own model wrote.
+
 ## Accessibility
 
 - `role="dialog"`, `aria-modal="true"`, `aria-labelledby` points at the header title.

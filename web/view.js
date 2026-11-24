@@ -22,7 +22,7 @@ const SAFE_EXIT_MAX_LINES = 3;
 // The sizes the line to say steps down through, largest first (safe-exit-card.md).
 const LINE_STEPS = ["safe-exit__line--title", "safe-exit__line--small"];
 
-const START = { score: 0, lines: [], sheet: null, explainer: null, realCall: false };
+const START = { score: 0, lines: [], sheet: null, explainer: null, source: null, realCall: false };
 let state = START;
 let t = (key) => key;
 
@@ -128,12 +128,16 @@ export function renderAlert(level) {
   }
 }
 
-/** Late enrichment. A degraded answer changes nothing: what is on screen stays. */
-export function renderExplainer(event) {
+/**
+ * Late enrichment. A degraded answer changes nothing: what is on screen stays.
+ * `source` is the copy key saying where this page's model wrote the answer, on the
+ * device or in the cloud; null when the server's own explainer wrote it.
+ */
+export function renderExplainer(event, source = null) {
   if (!event || event.degraded === true || typeof event.safe_exit_line !== "string") {
     return;
   }
-  state = { ...state, explainer: event };
+  state = { ...state, explainer: event, source };
   if (state.sheet !== null) {
     paintCards();
   }
@@ -157,6 +161,15 @@ function paintCards() {
     line.classList.add(step);
   }
   paintOfficial(info);
+  paintSource();
+}
+
+/** Where the line was written. Last in the sheet, so it never pushes the line to say,
+ *  the number to call or the button down the screen. */
+function paintSource() {
+  const note = el("explainer-source");
+  note.textContent = state.source !== null ? t(state.source) : "";
+  note.hidden = state.source === null;
 }
 
 /** A number is shown only if the server sent one; nothing is ever guessed here. */
