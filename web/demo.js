@@ -35,7 +35,7 @@ const SCRIPT = [
 
 const el = (id) => document.getElementById(id);
 
-let app = null; // { onEvent, onReset, setStatus, t }
+let app = null; // { onEvent, onReset, onEnd, setStatus, t }
 let recording = null; // { name, bytes }, or null when the server has none
 let run = { timers: [], startedAt: 0, durationMs: 0, marked: false, acked: 0 };
 
@@ -185,4 +185,5 @@ function endRun() {
   run.timers.forEach((timer) => clearTimeout(timer)); // clears intervals too
   run = { timers: [], startedAt: 0, durationMs: 0, marked: false, acked: 0 };
   stopCall();
+  app.onEnd(); // the replay is over, like a call that ended
 }

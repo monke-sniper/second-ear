@@ -159,11 +159,18 @@ export async function warmExplainer() {
   }
 }
 
-/** The call is over: let go of the idle session, so Chrome can unload the model. */
+/** The call is over: let go of the idle session, so Chrome can unload the model. It
+ *  never throws: the code that ends a call still has an alert sheet to close. */
 export function restExplainer() {
   warmRun += 1;
-  if (warm !== null) {
-    warm.destroy();
-    warm = null;
+  const session = warm;
+  warm = null;
+  if (session === null) {
+    return;
+  }
+  try {
+    session.destroy();
+  } catch {
+    // Already gone. There is nothing left to let go of.
   }
 }

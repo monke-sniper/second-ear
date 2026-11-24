@@ -180,9 +180,11 @@ zero-data-retention agreement. If the explainer is switched to Gemini
 
 With Firebase AI Logic set up, the same redacted text goes to the page's model instead of
 Haiku. When Gemini Nano answers, it stays on the laptop. When the cloud fallback answers,
-it goes to Google through Firebase AI Logic, under Google's terms. An alert raised after
-the page has gone (the last words before a hang-up) is still explained by the server's
-model, for the push.
+it goes to Google through Firebase AI Logic, under Google's terms. A scam alert that the
+page can no longer answer (raised by the last words before a hang-up, or still unanswered
+when the call is stopped) is explained by the server's model instead, for the push. Leave
+the server's key out of `.env` and the server asks no model: that push carries a fixed
+sentence.
 
 ## Results
 

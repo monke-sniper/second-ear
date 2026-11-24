@@ -53,6 +53,23 @@ def origin_allowed(origin: str | None) -> bool:
     return host in LOCAL_HOSTS
 
 
+def is_own_page(origin: str | None, host: str | None) -> bool:
+    """True when the socket was opened by a page this server served itself.
+
+    That is a browser whose Origin names the same host and port as the request's Host
+    header. `origin_allowed` lets any page on this machine open the socket; this is the
+    narrower test for the page explainer, so that a page on another local port is never
+    handed the prompt and cannot say what a model answered. A client with no Origin is
+    a script, not a page, and has no model to ask.
+    """
+    if not origin or not host:
+        return False
+    try:
+        return urlsplit(origin).netloc.lower() == host.strip().lower()
+    except ValueError:
+        return False
+
+
 def warm_up(services: Services) -> None:
     """Pay the slow first loads before the first chunk needs them.
 
@@ -112,12 +129,14 @@ def create_app(
         the socket and the browser's mic path work, and the first thing to check when
         a demo goes quiet. A page from another site is refused before the handshake
         completes (docs/SPEC.md §3)."""
-        if not origin_allowed(ws.headers.get("origin")):
+        origin = ws.headers.get("origin")
+        if not origin_allowed(origin):
             log.warning("audio socket refused: the page is not served from this machine")
             await ws.close(code=status.WS_1008_POLICY_VIOLATION)
             return
         await ws.accept()
-        await LiveCall(ws, services).run()
+        own_page = is_own_page(origin, ws.headers.get("host"))
+        await LiveCall(ws, services, own_page=own_page).run()
 
     @app.post("/simulate", response_model=SimulateResponse)
     def simulate(request: SimulateRequest) -> SimulateResponse:

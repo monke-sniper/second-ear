@@ -244,4 +244,3 @@ class PageExplainerConfig(WireModel):
     model: str | None = None
     system: str | None = None
     reply_schema: dict[str, Any] | None = None
-    budget_ms: int | None = None

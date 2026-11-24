@@ -24,7 +24,6 @@ from server.explainer_checks import NO_ORG
 PAGE_TIMEOUT = "page_timeout"  # the budget ran out before the page answered
 PAGE_GONE = "page_gone"  # the call was reset, or the page left, while it was asked
 PAGE_NO_ANSWER = "page_no_answer"  # the page said it could not ask a model
-MILLISECONDS = 1000
 
 
 def reply_schema(scam_types: Sequence[str], org_ids: Iterable[str]) -> dict[str, Any]:
@@ -59,7 +58,6 @@ def page_config(firebase: FirebaseSettings | None, explainer: Explainer) -> Page
         model=firebase.model,
         system=explainer.page_system(),
         reply_schema=reply_schema(SCAM_TYPES, explainer.orgs.keys()),
-        budget_ms=int(explainer.timeout_s * MILLISECONDS),
     )
 
 

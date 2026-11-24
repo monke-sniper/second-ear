@@ -16,6 +16,7 @@ from tests.test_web_call import function_body, js_constant
 
 APP_JS = (WEB_DIR / "app.js").read_text(encoding="utf-8")
 CALL_JS = (WEB_DIR / "call.js").read_text(encoding="utf-8")
+DEMO_JS = (WEB_DIR / "demo.js").read_text(encoding="utf-8")
 EXPLAINER_JS = (WEB_DIR / "explainer.js").read_text(encoding="utf-8")
 INDEX_HTML = (WEB_DIR / "index.html").read_text(encoding="utf-8")
 VIEW_JS = (WEB_DIR / "view.js").read_text(encoding="utf-8")
@@ -95,6 +96,17 @@ def test_the_on_device_model_is_woken_inside_the_press_that_starts_a_call():
         EXPLAINER_JS, "export async function warmExplainer()"
     )
     assert "restExplainer()" in function_body(APP_JS, "function endCall(statusKey)")
+
+
+def test_the_idle_session_is_let_go_however_a_call_or_a_replay_ends():
+    # Stop, a dropped connection, a Start that failed, and the end of a demo replay.
+    start = function_body(APP_JS, "async function onStart()")
+    assert start.index("} catch (error) {") < start.index("restExplainer();")
+    assert "onEnd: restExplainer" in APP_JS
+    assert "app.onEnd();" in function_body(DEMO_JS, "function endRun()")
+    # Letting go must never throw: the code that ends a call still has a sheet to close.
+    rest = function_body(EXPLAINER_JS, "export function restExplainer()")
+    assert rest.index("try {") < rest.index("session.destroy();") < rest.index("} catch {")
 
 
 def test_the_sheet_says_where_the_line_was_written_only_for_an_answer_the_page_gave():

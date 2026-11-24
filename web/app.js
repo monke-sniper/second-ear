@@ -205,6 +205,7 @@ async function onStart() {
     setScreen("listening");
     view.setStatus("status_listening");
   } catch (error) {
+    restExplainer(); // no call began, so nothing should stay warm for one
     const name = error instanceof Error ? error.name : "";
     view.setStatus(MIC_ERRORS[name] || "status_lost");
   }
@@ -247,7 +248,13 @@ function boot() {
   loadExplainer(); // not waited for: the page is usable before Firebase is, or without it
   if (new URLSearchParams(location.search).get(DEMO_PARAM) === "1") {
     setScreen("demo");
-    initDemo({ onEvent: handleServerEvent, onReset: beginCall, setStatus: view.setStatus, t });
+    initDemo({
+      onEvent: handleServerEvent,
+      onReset: beginCall,
+      onEnd: restExplainer,
+      setStatus: view.setStatus,
+      t,
+    });
     return;
   }
   setScreen("ready");

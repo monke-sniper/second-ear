@@ -16,7 +16,7 @@ import pytest
 
 from server.config import DEFAULT_FIREBASE_MODEL, ROOT, FirebaseSettings, get_settings
 from server.contracts import MAX_REPLY_CHARS
-from server.explainer import GENERIC_SAFE_EXIT, SCAM_TYPES, TIMEOUT_S, Explainer
+from server.explainer import GENERIC_SAFE_EXIT, SCAM_TYPES, Explainer
 from server.explainer_checks import NO_ORG
 from server.page_explainer import PageDesk, parse_explained, reply_schema
 from tests.conftest import Harness
@@ -102,9 +102,10 @@ def test_with_firebase_the_page_gets_what_it_needs_to_make_the_call():
         "appId": "1:2:web:3",
     }
     assert config["model"] == DEFAULT_FIREBASE_MODEL
-    assert config["budget_ms"] == int(TIMEOUT_S * 1000)
     assert config["system"] == harness.explainer().page_system()
     assert config["reply_schema"] == reply_schema(SCAM_TYPES, FAKE_ORGS.keys())
+    # Nothing the page does not use: the 4 s budget is the server's to keep.
+    assert set(config) == {"enabled", "firebase", "model", "system", "reply_schema"}
 
 
 def test_the_pages_instructions_name_the_word_its_schema_uses_for_no_organisation():

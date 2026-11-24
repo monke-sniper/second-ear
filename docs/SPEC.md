@@ -67,7 +67,10 @@ Client → server:
   not ask a model. The shape is strict: a missing or extra field, an `id` that is not a
   whole number, or any other `source` gets the `error` `explained message not understood`.
   An answer nobody is waiting for (an unknown `id`, one that ran out of time, one from
-  before a reset) is dropped and gets no reply.
+  before a reset, one from a page that is never asked) is dropped and gets no reply.
+  It is the one message taken out of order: the server reads it the moment it arrives,
+  not behind the audio sent before it. Audio waits its turn while a chunk is in Whisper,
+  and an answer left in that line would spend its 4 s there.
 - **any other text**: an `error` naming the message's `type` (`unknown` if it is not a
   plain lowercase name). The client's text is never copied into the reply.
 
@@ -92,8 +95,12 @@ enriches the open alert; a missing or degraded `explainer` changes nothing about
 An answer for an alert that a higher alert has since replaced is not sent: a slow `caution`
 answer never arrives after the `scam` alert, so it cannot overwrite the scam answer.
 
-`explain` is sent only when Firebase is set up (§5), after the `alert` it belongs to and
-stamped with that alert's `t_s`. It asks the page to make the explainer's model call.
+`explain` is sent only when Firebase is set up (§5) and only to the app's own page: a
+socket whose `Origin` names the same host and port as the request's `Host`. A page on
+another local port can open the socket (§10) but is never sent `explain`, and what it
+sends as `explained` is dropped; neither is a client with no `Origin`. `explain` comes
+after the `alert` it belongs to and is stamped with that alert's `t_s`. It asks the page
+to make the explainer's model call.
 `prompt` is the explainer's user message: the last 60 s of the call with every number
 replaced (§5), so it carries no digit. The page answers with `explained`; the server checks
 that answer and sends the `explainer` event as it would for any model. A page that does
@@ -134,8 +141,8 @@ HTTP:
   `Content-Disposition`. `404` when neither exists. No other file in that folder is served.
 - `GET /explainer/config` → what the page needs for the explainer's model call (§5):
   `{"enabled": true, "firebase": {"apiKey", "projectId", "appId"}, "model", "system",
-  "reply_schema", "budget_ms"}`, or `{"enabled": false}` when `.env` names no Firebase web
-  app. Sent with `Cache-Control: no-store`.
+  "reply_schema"}`, or `{"enabled": false}` when `.env` names no Firebase web app. Sent
+  with `Cache-Control: no-store`. The 4 s budget is not in it: the server keeps the time.
 - `GET /` → `web/index.html`; the rest of `web/` is served statically.
 
 ## 4. Module contracts
@@ -291,8 +298,12 @@ Signatures are listed in the code and are not to be reshaped without updating
 - No model call from the server while the page is asked, and no second try: a page that
   is silent for 4 s, says it could not ask (`source` `none`), or sends a reply that fails
   a check gets the generic line. `EXPLAINER_PROVIDER` still picks the server's model, which
-  answers when no page can: `/simulate`, an alert raised after the hang-up, and any run
-  without Firebase.
+  answers when no page can: `/simulate`, an alert raised after the hang-up, a socket that
+  is not the app's own page (§3), and any run without Firebase.
+- One case does go to the server after the page was asked: the page leaves before it has
+  answered a scam alert. Its answer can no longer come, and the family's push is still
+  owed, so the server's model is asked for it, with its own 4 s. A caution left
+  unanswered at a hang-up, and anything left unanswered at a reset, gets no model call.
 - The page logs nothing and stores nothing from a call. The server logs where the page's
   model ran (`on_device` or `in_cloud`) and, for a failure, one of `page_timeout`,
   `page_gone`, `page_no_answer` or a failed check's name.
@@ -526,6 +537,17 @@ socket messages, and the Firebase JS SDK as a browser dependency):
 - **An answer never crosses calls.** Request ids restart with each connection, so the
   page keeps the socket that asked and sends its answer only if that socket is still the
   call in progress.
+- **The socket is read by one task and worked through by another** (after review, the
+  same day). Before, one loop did both, so the page's answer waited behind any chunk in
+  Whisper and could be counted as late with time to spare. Now a reader takes messages
+  as they arrive, hands `explained` over at once, and queues the rest in order for the
+  call's own loop. The queue holds 256 messages, about a minute of audio; past that the
+  reader stops reading. The hang-up is queued too, so audio sent before it is still
+  heard first.
+- **Only the app's own page is asked** (§3). Without that, a page on another local port
+  could write the sentence in the family's push, which until now only a model wrote.
+- **The idle session is let go** when a call ends, when Start fails, and when a demo
+  replay ends.
 - **New copy.** `Written on this device.` and `Written by a cloud model.`, one line under
   the sheet's button, shown only for an answer the page's model wrote and the server
   accepted. It is last in the sheet so that it can never push the line to say, the number

@@ -54,6 +54,11 @@ UNREAD_DETAIL = "could not process that audio"
 EXPLAINED_DETAIL = "explained message not understood"
 # The `source` of an answer from a page that could not ask a model.
 NO_SOURCE = "none"
+# How many messages the reader may hold ahead of Whisper: about a minute of audio at
+# four frames a second. Past that it stops reading and the socket's own buffer fills.
+INBOX_MESSAGES = 256
+# One message as the ASGI server hands it over.
+Message = dict[str, Any]
 # docs/SPEC.md §2. Mid-call a chunk waits for 2 s and a pause. When the call ends no
 # more audio is coming, so what is left is heard from half a second up.
 END_TAIL_MIN_S = 0.5
@@ -90,7 +95,7 @@ def event_type(text: str) -> str:
     """The `type` of a client text message, or `unknown` if it is not a plain name."""
     try:
         payload = json.loads(text)
-    except ValueError:
+    except (ValueError, RecursionError):  # not JSON, or nested too deep to read
         return UNKNOWN_EVENT
     kind = payload.get("type") if isinstance(payload, dict) else None
     if isinstance(kind, str) and _EVENT_NAME.fullmatch(kind):
@@ -103,14 +108,15 @@ class LiveCall:
 
     Frames are handled in order, one chunk at a time: Whisper and the scorer run in a
     worker thread, and the alert is sent the moment the rules raise it. The explainer
-    and the pushes run as background tasks so the next chunk is never held up. A
+    and the pushes run as background tasks so the next chunk is never held up. The
+    page's `explained` answer is the one message taken out of order, as it arrives. A
     `reset` starts a new call; an explainer answer that arrives after it is dropped,
     with the push that would have followed. So is an answer for an alert that a higher
     alert has replaced. When the client leaves, the audio no chunk had closed over is
     still heard, so the last words of a call can still raise an alert or a push.
     """
 
-    def __init__(self, ws: WebSocket, services: Services) -> None:
+    def __init__(self, ws: WebSocket, services: Services, *, own_page: bool = False) -> None:
         self.ws = ws
         self.services = services
         self.session = CallSession(services.scorer)
@@ -118,29 +124,33 @@ class LiveCall:
         self.notifier = services.notifier_factory()
         self.page = PageDesk()
         self.total = 0
+        # Only the page this server served is handed the prompt and believed about what
+        # a model said (`own_page`, app.is_own_page).
+        self._asks_page = services.ask_page and own_page
         self._send_lock = asyncio.Lock()
         self._hearing = threading.Lock()
         self._tasks: set[asyncio.Task[None]] = set()
+        # `_open` goes false when the hang-up is reached in order, after the audio sent
+        # before it; `_gone` the moment the socket closes, which can be much earlier.
         self._open = True
+        self._gone = False
         self._unread_said = False
 
     async def run(self) -> None:
         """Serve the socket until the client leaves, then let open tasks finish."""
+        inbox: asyncio.Queue[Message | None] = asyncio.Queue(maxsize=INBOX_MESSAGES)
+        reader = asyncio.create_task(self._read(inbox))
         try:
-            while True:
-                message = await self.ws.receive()
-                if message["type"] == "websocket.disconnect":
-                    break
+            while (message := await inbox.get()) is not None:
                 data = message.get("bytes")
                 if data is not None:
                     await self._on_audio(data)
                 else:
                     await self._on_text(message.get("text") or "")
-        except WebSocketDisconnect:
-            pass
         finally:
+            reader.cancel()
             self._open = False
-            self.page.abandon()  # the page has gone; nothing it was asked can come back
+            self._page_left()
             log.info("audio socket closed after %d bytes", self.total)
             # A hang-up is not a reset: the last words are still heard, and a push on
             # its way still goes out. The tail is a task of its own, started before
@@ -152,6 +162,36 @@ class LiveCall:
             # In a loop, because the tail can start an explainer and a push of its own.
             while self._tasks:
                 await asyncio.wait(self._tasks)
+
+    async def _read(self, inbox: asyncio.Queue[Message | None]) -> None:
+        """Take messages off the socket as they arrive, and queue them for `run`.
+
+        Audio and `reset` are handled in order, one at a time, and a chunk in Whisper
+        holds up everything behind it. The page's `explained` answer must not wait in
+        that line: its budget is running. So it is handed over here, the moment it
+        comes. `None` in the queue is the hang-up, placed after the audio before it.
+        """
+        try:
+            while True:
+                message = await self.ws.receive()
+                if message["type"] == "websocket.disconnect":
+                    break
+                text = message.get("text")
+                if text is not None and message.get("bytes") is None and event_type(text) == EXPLAINED:
+                    await self._on_explained(text)
+                else:
+                    await inbox.put(message)  # waits when the queue is full
+        except WebSocketDisconnect:
+            pass
+        except Exception as exc:
+            log.warning("socket reader failed: %s", type(exc).__name__)
+        self._page_left()
+        await inbox.put(None)
+
+    def _page_left(self) -> None:
+        """The socket has closed: nothing the page was asked can come back."""
+        self._gone = True
+        self.page.abandon()
 
     async def _on_audio(self, data: bytes) -> None:
         if len(data) > MAX_FRAME_BYTES:
@@ -167,15 +207,17 @@ class LiveCall:
         if kind == RESET:
             self._reset()
             return
-        if kind == EXPLAINED:
-            answer = parse_explained(text)
-            if answer is None:
-                await self._send(ErrorEvent(detail=EXPLAINED_DETAIL))
-                return
-            # An answer nobody is waiting for (late, or for an id never asked) is dropped.
-            self.page.settle(answer)
-            return
         await self._send(ErrorEvent(detail=f"event not handled: {kind}"))
+
+    async def _on_explained(self, text: str) -> None:
+        """The page's answer to an `explain` request, taken as it arrives."""
+        answer = parse_explained(text)
+        if answer is None:
+            await self._send(ErrorEvent(detail=EXPLAINED_DETAIL))
+            return
+        # An answer nobody is waiting for (late, for an id never asked, or from a page
+        # that is never asked) is dropped.
+        self.page.settle(answer)
 
     def _reset(self) -> None:
         """A new call on the same socket. The old call's notifier is left behind, and
@@ -256,7 +298,7 @@ class LiveCall:
     ) -> None:
         """After the alert is out: name the scam, then tell the family if it is one."""
         try:
-            result = await self._explain(alert, chunks)
+            result = await self._explain(alert, chunks, generation)
             if generation != self.session.generation:
                 return  # a reset started a new call; this answer belongs to the old one
             if self.session.outranked(alert.level):
@@ -271,22 +313,38 @@ class LiveCall:
             log.warning("explainer task failed: %s", type(exc).__name__)
 
     async def _explain(
-        self, alert: AlertEvent, chunks: Sequence[TranscriptChunk]
+        self, alert: AlertEvent, chunks: Sequence[TranscriptChunk], generation: int
     ) -> ExplainerResult:
         """The explainer's read of the call: from the page's model while Firebase is set
-        up and a page is there to ask, from the server's own model otherwise."""
-        if self.services.ask_page and self._open:
-            return await self._ask_page(alert, chunks)
-        return await asyncio.to_thread(self.services.explainer.explain, chunks, alert.score)
+        up and the app's own page is there to ask, from the server's own model otherwise.
+
+        A page that leaves before it answers a scam alert hands the question to the
+        server's model, because the family's push is still to come. A caution has no
+        push, and a reset call has no use for an answer: those get the generic line.
+        """
+        explainer = self.services.explainer
+        if not (self._asks_page and self._open and not self._gone):
+            return await asyncio.to_thread(explainer.explain, chunks, alert.score)
+        try:
+            result = await self._ask_page(alert, chunks)
+        except Exception as exc:  # whatever went wrong, the scam push still has to go
+            return explainer.degraded(f"error:{type(exc).__name__}")
+        if result is not None:
+            return result
+        same_call = generation == self.session.generation
+        if same_call and alert.level is AlertLevel.scam:
+            return await asyncio.to_thread(explainer.explain, chunks, alert.score)
+        return explainer.degraded(PAGE_GONE)
 
     async def _ask_page(
         self, alert: AlertEvent, chunks: Sequence[TranscriptChunk]
-    ) -> ExplainerResult:
+    ) -> ExplainerResult | None:
         """Send the page the redacted prompt and wait, inside the budget, for its answer.
 
         The page asks Gemini Nano on the device, or cloud Gemini when Chrome has none
         (Firebase AI Logic hybrid inference). What it sends back is checked like any
         other reply; no answer in time is the generic line. The alert never waits.
+        Returns None when the page left, or the call was reset, before it answered.
         """
         explainer = self.services.explainer
         prompt = explainer.prompt_text(chunks)
@@ -295,15 +353,15 @@ class LiveCall:
         request_id, waiting = self.page.expect()
         try:
             await self._send(ExplainRequest(id=request_id, t_s=alert.t_s, prompt=prompt))
-            if not self._open:  # it left as the request went out
-                return explainer.degraded(PAGE_GONE)
+            if self._gone or not self._open:  # it left as the request went out
+                return None
             answer = await asyncio.wait_for(waiting, timeout=explainer.timeout_s)
         except asyncio.TimeoutError:
             return explainer.degraded(PAGE_TIMEOUT)
         finally:
             self.page.close(request_id)
         if answer is None:
-            return explainer.degraded(PAGE_GONE)
+            return None
         if answer.source == NO_SOURCE:
             return explainer.degraded(PAGE_NO_ANSWER)
         # Where the model ran is one of two fixed words, so it is safe in a log line.
