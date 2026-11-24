@@ -8,7 +8,7 @@ here decides, scores, or sends; those live in the modules named by the spec.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Annotated, Literal, Union
+from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -156,15 +156,56 @@ class DangerEvent(WireModel):
     t_s: float
 
 
+class ExplainRequest(WireModel):
+    """Asks the page to make the explainer's model call, through Firebase AI Logic.
+
+    Sent after an alert, only when Firebase is set up. `prompt` is the last minute of
+    the call with every number already replaced; `id` comes back on the answer.
+    """
+
+    type: Literal["explain"] = "explain"
+    id: int = Field(ge=0)
+    t_s: float
+    prompt: str
+
+
 class ErrorEvent(WireModel):
     type: Literal["error"] = "error"
     detail: str
 
 
 ServerEvent = Annotated[
-    Union[AudioAck, TranscriptEvent, RiskEvent, AlertEvent, ExplainerEvent, DangerEvent, ErrorEvent],
+    Union[
+        AudioAck,
+        TranscriptEvent,
+        RiskEvent,
+        AlertEvent,
+        ExplainerEvent,
+        DangerEvent,
+        ExplainRequest,
+        ErrorEvent,
+    ],
     Field(discriminator="type"),
 ]
+
+
+# ------------------------------------------------------------------- client events
+
+# Room for one short JSON answer and no more. The explainer asks for about 300 characters.
+MAX_REPLY_CHARS = 4_000
+
+
+class PageAnswer(WireModel):
+    """The page's answer to an `explain` request: the model's raw text, unchecked.
+
+    `source` is where the model ran: `on_device` (Gemini Nano in Chrome), `in_cloud`
+    (cloud Gemini), or `none` with an empty `text` when the page could not ask one.
+    """
+
+    type: Literal["explained"] = "explained"
+    id: int = Field(ge=0)
+    text: str = Field(max_length=MAX_REPLY_CHARS)
+    source: Literal["on_device", "in_cloud", "none"]
 
 
 # ---------------------------------------------------------------------- HTTP shapes
@@ -188,3 +229,18 @@ class SimulateResponse(WireModel):
     alerts: list[AlertEvent]
     explainers: list[ExplainerEvent]
     danger: list[DangerEvent]
+
+
+class PageExplainerConfig(WireModel):
+    """What `GET /explainer/config` tells the page. Without Firebase it is `enabled`
+    alone, and the page loads no SDK and is never asked to explain.
+
+    `firebase` is passed to the SDK's `initializeApp` as it is, so its keys are
+    Firebase's own (`apiKey`, `projectId`, `appId`).
+    """
+
+    enabled: bool
+    firebase: dict[str, str] | None = None
+    model: str | None = None
+    system: str | None = None
+    reply_schema: dict[str, Any] | None = None

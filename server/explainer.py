@@ -4,7 +4,8 @@ In: the last 60 s of transcript, with every number replaced before it is sent.
 Out: scam type, one-line reason, the line to say, and the claimed organisation's
 verified number from server/orgs.json.
 It never decides an alert, never raises, and never changes the alert level. The model
-is Haiku, or Gemini when EXPLAINER_PROVIDER=gemini; every rule here is the same for both.
+is Haiku, or Gemini when EXPLAINER_PROVIDER=gemini; every rule here is the same for both,
+and for an answer the page got from its own model (`from_reply`, page_explainer.py).
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 from server.config import get_settings
 from server.contracts import ExplainerResult, TranscriptChunk
-from server.explainer_checks import OK, Reply, check_reply
+from server.explainer_checks import NO_ORG, OK, Reply, check_reply
 from server.explainer_prompt import system_message, user_message
 from server.gemini_client import GEMINI_REQUEST_OPTIONS, GeminiClient
 from server.orgs import Org, load_orgs  # also imported from here by tests and callers
@@ -125,6 +126,43 @@ class Explainer:
             result, code = self._explain(chunks, deadline)
         except Exception as exc:  # never raise: the alert must stand
             result, code = None, f"error:{type(exc).__name__}"
+        return self._settle(result, code)
+
+    def from_reply(self, text: str) -> ExplainerResult:
+        """Check an answer that a model gave somewhere else, and look its org up.
+
+        The page asks its own model through Firebase AI Logic (docs/SPEC.md §5); what
+        comes back goes through every check a reply to `explain` does, and fails to
+        the same generic line. It never raises and asks no model.
+        """
+        try:
+            result, code = self._checked(text, no_org=NO_ORG)
+        except Exception as exc:
+            result, code = None, f"error:{type(exc).__name__}"
+        return self._settle(result, code)
+
+    def degraded(self, code: str) -> ExplainerResult:
+        """The generic line, for a caller whose own model call came to nothing.
+
+        `code` is one of the caller's fixed names (`page_timeout`), never anything from
+        the call: it is logged.
+        """
+        return self._settle(None, code)
+
+    def prompt_text(self, chunks: Sequence[TranscriptChunk]) -> str | None:
+        """The redacted user message for `chunks`, or None when nothing was said."""
+        if not any(chunk.text.strip() for chunk in chunks):
+            return None
+        return self._prompt(chunks)
+
+    def page_system(self) -> str:
+        """The instructions for the page's model: the same ones, except that its JSON
+        schema has a word for "no organisation" where Haiku is told to say null."""
+        names = {org.id: org.name for org in self.orgs.values()}
+        return system_message(SCAM_TYPES, names, no_org=f'"{NO_ORG}"')
+
+    def _settle(self, result: ExplainerResult | None, code: str) -> ExplainerResult:
+        """Record how a call ended and return its result, or the generic line."""
         self.last_code = code
         if result is None:
             # The code and a class name only. Never the transcript, the reply, or an
@@ -139,14 +177,21 @@ class Explainer:
         client = self._resolve_client()
         if client is None:
             return None, "no_api_key"
-        if not any(chunk.text.strip() for chunk in chunks):
+        prompt = self.prompt_text(chunks)
+        if prompt is None:
             return None, "empty_transcript"
-        code, text = self._ask(client, self._prompt(chunks), deadline)
+        code, text = self._ask(client, prompt, deadline)
         if code != OK:
             return None, code
+        return self._checked(text)
+
+    def _checked(
+        self, text: str, *, no_org: str | None = None
+    ) -> tuple[ExplainerResult | None, str]:
+        """Every docs/SPEC.md §5 check on a reply, whoever asked the model."""
         if not text.strip():
             return None, "empty_reply"
-        reply, code = check_reply(text, SCAM_TYPES, self.orgs.keys())
+        reply, code = check_reply(text, SCAM_TYPES, self.orgs.keys(), no_org=no_org)
         if reply is None:
             return None, code
         return self._result(reply), OK

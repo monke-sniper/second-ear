@@ -21,6 +21,10 @@ REASON_MAX_CHARS = 120
 
 OK = "ok"
 BAD_JSON = "bad_json"
+# What "no organisation" is called in an answer held to a JSON schema. Not every model
+# can be handed a schema that allows null (the page's on-device one), so its schema
+# lists this word next to the organisation ids. Only that answer may use it.
+NO_ORG = "none"
 
 
 @dataclass(frozen=True)
@@ -62,12 +66,17 @@ def _safe_exit_ok(line: str) -> bool:
 
 
 def check_reply(
-    text: str, scam_types: Collection[str], org_ids: Collection[str]
+    text: str,
+    scam_types: Collection[str],
+    org_ids: Collection[str],
+    *,
+    no_org: str | None = None,
 ) -> tuple[Reply | None, str]:
     """Validate the reply. Returns `(reply, "ok")` or `(None, <failed check>)`.
 
     The failure code names the check only — never the reply text — so it is safe to
-    log and to show in the demo console.
+    log and to show in the demo console. `no_org`, when given, is a word the reply may
+    use in `claimed_org` to mean no organisation; it is read as null.
     """
     data = _parse_object(text)
     if data is None:
@@ -86,6 +95,8 @@ def check_reply(
         return None, "invalid:safe_exit_line"
 
     claimed_org = data.get("claimed_org")
+    if no_org is not None and claimed_org == no_org:
+        claimed_org = None
     if claimed_org is not None and not isinstance(claimed_org, str):
         return None, "invalid:claimed_org"
     if claimed_org is not None and claimed_org not in org_ids:

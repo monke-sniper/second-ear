@@ -74,6 +74,8 @@ laptop (about 0.8 s for a 4 s chunk) because the CUDA libraries are missing — 
 | `server/gemini_client.py` | Gemini over httpx with the `messages.create` shape the explainer calls. One request, no retries |
 | `server/explainer_prompt.py` | The two messages Haiku sees, with every number removed |
 | `server/explainer_checks.py` | Validates Haiku's reply before any of it reaches the screen or a push |
+| `server/page_explainer.py` | The explainer's model call when the page makes it (Firebase AI Logic): the page's config, the answer's JSON schema, the `explained` message, the answers a connection waits for |
+| `web/explainer.js` | The Firebase AI Logic call itself: Gemini Nano on the device first, cloud Gemini second. It checks nothing; the server does |
 | `server/notify.py` | One ntfy push per alert type per call |
 | `server/orgs.py` | Loads `orgs.json`; a phone is shown only when it is verified |
 | `server/orgs.json` | Fixed organisation list; numbers verified from official sites |

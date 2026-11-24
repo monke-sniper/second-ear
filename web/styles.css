@@ -517,6 +517,12 @@ blockquote {
   padding: var(--space-md) var(--alert-gutter);
 }
 
+/* Under the button, and last: if the sheet ever runs past the screen, this is the
+   line that scrolls, not the line to say or the number to call. */
+.sheet__source {
+  margin: var(--space-sm) 0 0;
+}
+
 /* --------------------------------------------------------------- Demo console */
 
 /* "Nothing here is live. The mic is off in demo mode." The first thing on the console,

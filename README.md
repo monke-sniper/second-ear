@@ -64,8 +64,11 @@ when the risk is high it does three things:
 
 **Second Ear never saves your calls.** Audio and words are processed in memory and are
 never written to disk or to a log. Only during an alert, a short text excerpt with every
-number removed is sent to Claude Haiku to name the scam, and the push to the family member
-carries one line saying what kind of scam it looks like.
+number removed is given to a language model to name the scam, and the push to the family
+member carries one line saying what kind of scam it looks like. With
+[Firebase AI Logic](#on-the-device-first-firebase-ai-logic) set up, that model is Gemini
+Nano inside Chrome whenever the browser has it, so the excerpt does not leave the laptop;
+a cloud model is the fallback. Without it the model is Claude Haiku.
 
 A demo console replays a recorded call through the same pipeline with the mic off.
 
@@ -105,9 +108,56 @@ some real calls; the Results section says which.
    A scam alert needs two high chunks in a row, so that one word or one misheard chunk
    cannot set it off. A code warning fires when a run of digits is read out during a
    risky call.
-5. On an alert, Claude Haiku names the kind of scam and writes the line to say. It cannot
+5. On an alert, a language model names the kind of scam and writes the line to say. With
+   Firebase AI Logic set up, the page asks Gemini Nano on the device first and cloud
+   Gemini second; otherwise the server asks Claude Haiku. Whichever it is, it cannot
    raise, lower or cancel an alert, and if it is slow or its answer breaks a rule the app
    shows a fixed line instead. ntfy carries the push.
+
+## On the device first: Firebase AI Logic
+
+The one part of Second Ear that sends words from a call to a model is the explainer in
+step 5. With [Firebase AI Logic](https://firebase.google.com/docs/ai-logic) that call
+moves into the browser and runs as **hybrid inference**, on-device first:
+
+- **On the device.** In Chrome on a desktop with the built-in model, Gemini Nano writes
+  the answer. The excerpt of the call goes from the server to the page on the same laptop
+  and no further.
+- **In the cloud.** In a browser without that model, the same request falls back to cloud
+  Gemini (`gemini-3.5-flash-lite` unless `FIREBASE_AI_MODEL` says otherwise). The excerpt
+  then goes to Google, with every number already replaced.
+- **The screen says which.** Under the alert's button, one line reads
+  `Written on this device.` or `Written by a cloud model.` The first is shown only when
+  the Firebase SDK reports that the on-device model answered.
+
+How a single alert goes:
+
+1. The rules raise the alert and it is on screen at once. Nothing waits for a model.
+2. The server sends the page an `explain` message: the last minute of the transcript,
+   with every number replaced, the same text Haiku would get.
+3. [`web/explainer.js`](web/explainer.js) asks the model through the Firebase JS SDK:
+   `getGenerativeModel(ai, { mode: InferenceMode.PREFER_ON_DEVICE, ... })`, then
+   `model.generateContent(prompt)`. Both models get the same instructions and are held
+   to the same JSON schema (`responseConstraint` on the device, `responseSchema` in the
+   cloud).
+4. The page sends the raw answer back as `explained`. The server checks it exactly as it
+   checks Haiku's (a fixed list of scam types, no digits in the line to say, length
+   limits, a known organisation) and only then sends it to the screen and into the push.
+5. No answer inside 4 seconds, or an answer that fails a check, and the fixed line shows.
+
+Firebase AI Logic requires App Check. The page is only ever served from this machine, so
+it uses App Check's debug provider; [Setup](#set-up-firebase-ai-logic-optional) has the
+steps. The files: [`web/explainer.js`](web/explainer.js) (the Firebase calls),
+[`server/page_explainer.py`](server/page_explainer.py) (the config, the schema, the
+answer's shape), [`server/live.py`](server/live.py) (the round trip on the socket), and
+`docs/SPEC.md` §5 (the rule).
+
+**What is and is not checked.** The server side of this is covered by tests: the
+round trip, the checks, the time limit, a page that leaves mid-answer. The browser side
+is not: no test here runs Chrome's on-device model, and how long Gemini Nano or the cloud
+fallback takes to answer has not been timed (`docs/SPEC.md` §10). Every number in
+[Results](#results) is from the version before this change, and none of them depends on
+which model the explainer asks: the explainer never touches detection.
 
 **Privacy.** The app never stores audio; each chunk is transcribed in memory and dropped.
 Digits never leave the call: spoken numbers are counted and replaced before any text
@@ -127,6 +177,14 @@ on API inputs or outputs by default and deletes them within 30 days, unless a re
 flagged under its usage policy or the law requires longer. A real product would add a
 zero-data-retention agreement. If the explainer is switched to Gemini
 (`EXPLAINER_PROVIDER=gemini`), the same text goes to Google instead, under Google's terms.
+
+With Firebase AI Logic set up, the same redacted text goes to the page's model instead of
+Haiku. When Gemini Nano answers, it stays on the laptop. When the cloud fallback answers,
+it goes to Google through Firebase AI Logic, under Google's terms. A scam alert that the
+page can no longer answer (raised by the last words before a hang-up, or still unanswered
+when the call is stopped) is explained by the server's model instead, for the push. Leave
+the server's key out of `.env` and the server asks no model: that push carries a fixed
+sentence.
 
 ## Results
 
@@ -220,6 +278,13 @@ every number above is from the frozen version (tag detection-freeze).
 - **Libraries and services:** [FastAPI](https://fastapi.tiangolo.com/) and
   [ntfy](https://ntfy.sh/), plus uvicorn, CTranslate2, transformers, PyTorch, httpx and the
   Anthropic SDK.
+- **Firebase AI Logic:** the [Firebase JavaScript SDK](https://firebase.google.com/docs/web/setup)
+  13.4.0 (`firebase-app`, `firebase-app-check`, `firebase-ai`), loaded in the page from
+  Google's CDN. Built from Firebase's guides to
+  [hybrid inference in web apps](https://firebase.google.com/docs/ai-logic/hybrid/web/get-started),
+  its [configuration options](https://firebase.google.com/docs/ai-logic/hybrid/web/configuration-options)
+  and [structured output](https://firebase.google.com/docs/ai-logic/hybrid/web/generate-structured-output),
+  and the [App Check debug provider](https://firebase.google.com/docs/app-check/web/debug-provider).
 - **Advice on phone scams:** the FTC's [Phone Scams](https://consumer.ftc.gov/articles/phone-scams),
   [How To Avoid a Scam](https://consumer.ftc.gov/articles/how-avoid-scam) and
   [What To Know About Romance Scams](https://consumer.ftc.gov/articles/what-know-about-romance-scams).
@@ -277,8 +342,9 @@ of them writes to `eval/results/`.
    on our laptop. The tests use fakes for Whisper, the explainer and the push.
 2. **Ask what this machine can run.** `python -m server.preflight`. It should end with `OK`,
    after warnings for what a fresh clone does not have: the trained scorer (a keyword
-   stand-in is used), `ANTHROPIC_API_KEY` (the explainer shows its fixed line) and
-   `NTFY_TOPIC` (pushes are off). The first run downloads Whisper `base.en`; add
+   stand-in is used), the Firebase values (the page is not asked to explain),
+   `ANTHROPIC_API_KEY` (the explainer shows its fixed line) and `NTFY_TOPIC` (pushes are
+   off). The first run downloads Whisper `base.en`; add
    `--skip-whisper` to leave that step out.
 3. **Watch an alert.** `uvicorn server.app:app --port 8000`, then open
    `http://localhost:8000/?demo=1` and press Play. A fresh clone has no recordings, so the
@@ -346,10 +412,38 @@ held-out scoring, is in `eval/README.md`.
 `python scripts/smoke_explainer.py` and `python scripts/smoke_push.py` check the real
 explainer request and a real push once `.env` has the key and the topic.
 
+### Set up Firebase AI Logic (optional)
+
+Without these steps the app runs as before and the server's own explainer answers.
+
+1. In the [Firebase console](https://console.firebase.google.com/), make a project (or
+   pick one), open **AI Services > AI Logic**, press **Get started** and choose the
+   **Gemini Developer API**. Register a web app when it asks. The same workflow turns on
+   App Check for AI Logic.
+2. Copy three values from the web app's config (Project settings > Your apps) into
+   `.env`: `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID`, `FIREBASE_APP_ID`. They are a web
+   app's public config; `.env` keeps a clone from being tied to anyone's project.
+3. Start the server and open `http://localhost:8000/` in Chrome with the developer tools
+   open. The Firebase SDK prints an App Check debug token there once. Register it in the
+   Firebase console under **Security > App Check > Apps > Manage debug tokens**. The
+   token is a secret: never commit it.
+4. For answers on the device, use Chrome 139 or later on a desktop and turn on
+   `chrome://flags/#prompt-api-for-gemini-nano-multimodal-input`, then restart Chrome.
+   The first press of Start listening begins the model's download, which can take
+   several minutes; until it is done, the cloud model answers.
+5. `python -m server.preflight` now prints `PASS  Firebase AI Logic set`. Raise an alert
+   (a live call, or a recording in the demo console) and the line under the alert's
+   button says where the answer was written. The server log says the same:
+   `explainer answered by the page: on_device`.
+
+The demo console's text replay (a fresh clone with no recording) goes through `/simulate`
+and never asks the page's model; it uses the server's explainer.
+
 ## Repository map
 
 - [`server/`](server/): FastAPI app, audio pipeline, alert rules, explainer, push
-- [`web/`](web/): phone UI and demo console, plain HTML/JS, no build step
+- [`web/`](web/): phone UI and demo console, plain HTML/JS, no build step.
+  [`web/explainer.js`](web/explainer.js) is the Firebase AI Logic call
 - [`ml/`](ml/): Colab notebooks that train the scorer and run the keyword baseline
 - [`eval/`](eval/): held-out set, offline scoring of recorded calls, and `results/`
 - [`tests/`](tests/): `test_*` = plumbing, `spec_*` = behaviour specs
@@ -373,6 +467,8 @@ Full list in `docs/SPEC.md`. The ones that shape everything:
   carries a count, nothing else.
 - The explainer names the scam and the organisation from a fixed list, 4 s budget,
   validated, and can never change the alert level.
+- With Firebase set up, the explainer's model call runs in the page, on-device first
+  (`PREFER_ON_DEVICE`). The server still redacts the prompt and checks the answer.
 - One ntfy push per alert type per call.
 
 ## Not in the repo, by design
@@ -381,3 +477,10 @@ Full list in `docs/SPEC.md`. The ones that shape everything:
   recordings (`eval/calls/*.wav`), `.env`.
 - Call-back phone numbers. `server/orgs.json` has names and aliases but `phone: null` for
   every entry, because none has been checked on the organisation's own site yet.
+- The Firebase web config and the App Check debug token. The first lives in `.env`, the
+  second in the browser that made it.
+
+## License
+
+[Apache-2.0](LICENSE). The base model (`distilbert-base-uncased`) and the training data
+(BothBosu/scam-dialogue) are Apache-2.0 as well.

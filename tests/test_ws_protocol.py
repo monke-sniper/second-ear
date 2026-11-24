@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
-from server.app import origin_allowed
+from server.app import is_own_page, origin_allowed
 from tests.helpers import silence_frame
 
 
@@ -103,3 +103,35 @@ def test_only_localhost_and_127_0_0_1_are_local(origin):
 
 def test_a_client_that_sends_no_origin_is_not_a_browser_and_is_let_in():
     assert origin_allowed(None) is True
+
+
+@pytest.mark.parametrize(
+    ("origin", "host", "own"),
+    [
+        ("http://localhost:8000", "localhost:8000", True),
+        ("http://127.0.0.1:8000", "127.0.0.1:8000", True),
+        ("https://localhost", "localhost", True),  # a default port is left out of both
+        ("http://LOCALHOST:8000", "localhost:8000", True),
+        ("http://localhost:3000", "localhost:8000", False),  # another program on this machine
+        ("http://localhost", "localhost:8000", False),
+        ("http://localhost:8000", "127.0.0.1:8000", False),  # a different name is a different origin
+        ("http://localhost:8000.evil.example", "localhost:8000", False),
+        ("null", "localhost:8000", False),
+        ("http://[", "localhost:8000", False),
+        ("", "localhost:8000", False),
+        (None, "localhost:8000", False),  # a script, not a page
+        ("http://localhost:8000", None, False),
+    ],
+)
+def test_only_a_page_this_server_served_is_its_own_page(origin, host, own):
+    # Narrower than `origin_allowed`: this decides who is asked to explain an alert.
+    assert is_own_page(origin, host) is own
+
+
+def test_json_nested_too_deep_to_read_is_an_unknown_event_and_the_socket_stays_open(client):
+    with client.websocket_connect("/ws/audio") as ws:
+        ws.send_text("[" * 100_000 + "]" * 100_000)
+        assert ws.receive_json() == {"type": "error", "detail": "event not handled: unknown"}
+
+        ws.send_bytes(silence_frame())
+        assert ws.receive_json()["type"] == "ack"

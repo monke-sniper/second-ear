@@ -1,4 +1,5 @@
-"""The FastAPI app: health, the audio socket, simulate, the demo recording, the static app.
+"""The FastAPI app: health, the audio socket, simulate, the page's explainer config, the
+demo recording, the static app.
 
 It builds the shared services and hands each request to the module that owns it.
 It does not transcribe, score, decide, explain, or push — each of those lives in its
@@ -14,17 +15,18 @@ from pathlib import Path
 from typing import AsyncIterator, Callable
 from urllib.parse import urlsplit
 
-from fastapi import FastAPI, HTTPException, WebSocket, status
+from fastapi import FastAPI, HTTPException, Response, WebSocket, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from server import pipeline
-from server.config import CALLS_DIR, WEB_DIR
-from server.contracts import SimulateRequest, SimulateResponse
+from server.config import CALLS_DIR, WEB_DIR, FirebaseSettings, get_settings
+from server.contracts import PageExplainerConfig, SimulateRequest, SimulateResponse
 from server.demo import find_demo_audio
 from server.explainer import Explainer
 from server.live import LiveCall, Services, Transcriber
 from server.notify import NtfyNotifier
+from server.page_explainer import page_config
 from server.scorer import RiskScorer, load_app_scorer
 from server.stt import load_transcriber
 
@@ -49,6 +51,23 @@ def origin_allowed(origin: str | None) -> bool:
     except ValueError:
         return False
     return host in LOCAL_HOSTS
+
+
+def is_own_page(origin: str | None, host: str | None) -> bool:
+    """True when the socket was opened by a page this server served itself.
+
+    That is a browser whose Origin names the same host and port as the request's Host
+    header. `origin_allowed` lets any page on this machine open the socket; this is the
+    narrower test for the page explainer, so that a page on another local port is never
+    handed the prompt and cannot say what a model answered. A client with no Origin is
+    a script, not a page, and has no model to ask.
+    """
+    if not origin or not host:
+        return False
+    try:
+        return urlsplit(origin).netloc.lower() == host.strip().lower()
+    except ValueError:
+        return False
 
 
 def warm_up(services: Services) -> None:
@@ -76,16 +95,20 @@ def create_app(
     explainer: Explainer | None = None,
     notifier_factory: Callable[[], NtfyNotifier] | None = None,
     calls_dir: Path | None = None,
+    firebase: FirebaseSettings | None = None,
 ) -> FastAPI:
     """Build the app. Every argument is a seam for tests; the defaults are the real
-    Whisper, the trained scorer or its stand-in, Haiku, ntfy from .env, and the
-    recordings folder."""
+    Whisper, the trained scorer or its stand-in, Haiku, ntfy from .env, the recordings
+    folder, and the Firebase web app named in .env (none: the page is never asked to
+    explain)."""
     recordings = calls_dir if calls_dir is not None else CALLS_DIR
+    page_firebase = firebase if firebase is not None else get_settings().firebase
     services = Services(
         transcriber=transcriber if transcriber is not None else load_transcriber(),
         scorer=scorer if scorer is not None else load_app_scorer(),
         explainer=explainer if explainer is not None else Explainer(),
         notifier_factory=notifier_factory if notifier_factory is not None else NtfyNotifier,
+        ask_page=page_firebase is not None,
     )
 
     @asynccontextmanager
@@ -106,12 +129,14 @@ def create_app(
         the socket and the browser's mic path work, and the first thing to check when
         a demo goes quiet. A page from another site is refused before the handshake
         completes (docs/SPEC.md §3)."""
-        if not origin_allowed(ws.headers.get("origin")):
+        origin = ws.headers.get("origin")
+        if not origin_allowed(origin):
             log.warning("audio socket refused: the page is not served from this machine")
             await ws.close(code=status.WS_1008_POLICY_VIOLATION)
             return
         await ws.accept()
-        await LiveCall(ws, services).run()
+        own_page = is_own_page(origin, ws.headers.get("host"))
+        await LiveCall(ws, services, own_page=own_page).run()
 
     @app.post("/simulate", response_model=SimulateResponse)
     def simulate(request: SimulateRequest) -> SimulateResponse:
@@ -121,6 +146,14 @@ def create_app(
         sends a push.
         """
         return pipeline.simulate(request, services.scorer, services.explainer)
+
+    @app.get("/explainer/config", response_model=PageExplainerConfig, response_model_exclude_none=True)
+    def explainer_config(response: Response) -> PageExplainerConfig:
+        """What the page needs to make the explainer's model call through Firebase AI
+        Logic: the web app's config, the cloud model, the instructions and the answer's
+        JSON schema. Without Firebase in .env it says so, and the page loads no SDK."""
+        response.headers["Cache-Control"] = "no-store"
+        return page_config(page_firebase, services.explainer)
 
     @app.get("/demo/audio")
     def demo_audio() -> FileResponse:

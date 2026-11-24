@@ -1,7 +1,8 @@
 /*
  * Second Ear — one call's audio path: a source, the capture worklet, the socket.
  * In: the mic, or a recording's bytes in demo mode. Both go through the same
- * worklet and the same /ws/audio. Out: every server event, handed to `onEvent`.
+ * worklet and the same /ws/audio. Out: every server event, handed to `onEvent`, and
+ * the page's own JSON messages to the server (`sendMessage`).
  * It draws nothing and decides nothing; it never keeps audio.
  */
 
@@ -26,6 +27,26 @@ let sentBytes = 0;
 /** Audio bytes sent on this call so far. The server's `ack.total` counts the same. */
 export function bytesSent() {
   return sentBytes;
+}
+
+/** The socket of the call in progress, or null. Whoever answers the server later keeps
+ *  it, so an answer can never be sent into the call that came after. */
+export function callSocket() {
+  return live === null ? null : live.socket;
+}
+
+/**
+ * Send one JSON message to the server, if `socket` is still the call in progress.
+ * @param {WebSocket | null} socket the value `callSocket()` gave when the work began
+ * @param {object} message
+ * @returns {boolean} whether it was sent
+ */
+export function sendMessage(socket, message) {
+  if (socket === null || socket !== callSocket() || socket.readyState !== WebSocket.OPEN) {
+    return false;
+  }
+  socket.send(JSON.stringify(message));
+  return true;
 }
 
 /** False on plain http away from localhost, where the browser hides the mic. */
